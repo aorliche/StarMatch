@@ -3,6 +3,7 @@ const typeColors = ['#1a1a39', '#333200', '#3e151e', '#0a2e25', '#3a1b35', '#012
 const images = [];
 
 let game;
+let deferred = {game: null};
 
 window.addEventListener('load', e => {
 	const score = document.querySelector('#score');
@@ -99,7 +100,7 @@ window.addEventListener('load', e => {
 		type.selectedIndex = 2;
 		if (game) {
 			setParams();
-			game.startLevel((lvl-1)*3+2);
+			game.startLevel((lvl-1)*3+1);
 		}
 	});
 	
@@ -114,7 +115,7 @@ window.addEventListener('load', e => {
 		type.selectedIndex = 1;
 		if (game) {
 			setParams();
-			game.startLevel((lvl-1)*3+1);
+			game.startLevel((lvl-1)*3+3);
 		}
 	});
 	
@@ -129,7 +130,7 @@ window.addEventListener('load', e => {
 		type.selectedIndex = 0;
 		if (game) {
 			setParams();
-			game.startLevel((lvl-1)*3+3);
+			game.startLevel((lvl-1)*3+2);
 		}
 	});
 
@@ -150,18 +151,26 @@ window.addEventListener('load', e => {
 
 	// Gamepad
 	window.addEventListener("gamepadconnected", e => {
-		if (game) game.pad = e.gamepad;
-		console.log(game.pad);
+        function addPad() {
+            if (!deferred.game) setTimeout(addPad, 100);
+            else {
+                deferred.game.pad = e.gamepad;
+                console.log(game.pad);
+            }
+        }
+        setTimeout(addPad, 100);
 	});
 
 	window.addEventListener("gamepaddisconnected", e => {
-		if (game) game.pad = null;
-		console.log(game.pad);
+		if (game) {
+            game.pad = null;
+            console.log(game.pad);
+        }
 	});	
 
 	function updatePage() {
 		const subLvl = Math.floor(game.level/3);
-		const select = [triLevel, squareLevel, hexLevel][game.level%3];
+		const select = [squareLevel, hexLevel, triLevel][game.level%3];
 		select.selectedIndex = subLvl+1;
 		select.dispatchEvent(new Event('change'));
 	}
@@ -171,6 +180,7 @@ window.addEventListener('load', e => {
 	function loadFn() {
 		if (++numLoaded == 6) {
 			game = new Game(canvas, updatePage);
+            deferred.game = game;
 			setParams();
 			//game.repaint();
 			initSounds();
@@ -195,10 +205,10 @@ window.addEventListener('load', e => {
 			let defUrl = null;
 			// Load defaults
 			if (name in sounds && sounds[name]) { 
-				defUrl = new URL(`/SpaceMatch/Sounds/${sounds[name]}`, baseUrl);
+				defUrl = new URL(`${window.location.pathname}Sounds/${sounds[name]}`, baseUrl);
 				game.sounds.load(name, defUrl);
 			} else if (name in music && music[name]) {
-				defUrl = new URL(`/SpaceMatch/Sounds/${music[name]}`, baseUrl);
+				defUrl = new URL(`${window.location.pathname}Sounds/${music[name]}`, baseUrl);
 				game.sounds.loadMusic(name, defUrl);
 			}
 			// Play

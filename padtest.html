@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel='icon' href='/Images/icon.png'>
+<meta charset='utf-8'>
+<title>Controller Test</title>
+<script>
+window.addEventListener('load', e => {
+    const padDiv = document.querySelector('#pad');
+    function drawPadState() {
+        padDiv.innerHTML = '';
+        let connected = false;
+        const ul = document.createElement('ul');
+        for (const pad of navigator.getGamepads()) {
+            if (!pad) continue;
+            connected = true;
+            /*if (pad == null) {
+                padDiv.innerText = 'No pad connected';
+                window.requestAnimationFrame(drawPadState);
+                return;
+            }*/
+            for (let i=0; i<pad.buttons.length; i++) {
+                if (pad.buttons[i].pressed) {
+                    const li = document.createElement('li');
+                    li.innerText = `Button ${i}`;
+                    ul.appendChild(li);
+                }
+            }
+            for (let i=0; i<pad.axes.length; i++) {
+                if (Math.abs(pad.axes[i]) > 0.1) {
+                    const li = document.createElement('li');
+                    li.innerText = `Axis ${i}: ${pad.axes[i]}`;
+                    ul.appendChild(li);
+                }
+            }
+        }
+        if (!connected) {
+            padDiv.innerText = 'No pad connected';
+        } else if (ul.children.length == 0) {
+            padDiv.innerText = 'Pad connected; no buttons pressed';
+        } else {
+            padDiv.appendChild(ul);
+        }
+        window.requestAnimationFrame(drawPadState);
+    }
+    window.addEventListener('gamepadconnected', e => {
+        console.log('connected');
+    });
+    window.addEventListener('gamepaddisconnected', e => {
+        console.log('disconnected');
+    });
+    window.requestAnimationFrame(drawPadState);
+});
+</script>
+</head>
+<body>
+<h1>Controller Test</h1>
+<div id='pad'>No pad connected</div>
+</body>
+</html>

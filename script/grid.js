@@ -40,7 +40,12 @@ class HexPoly {
 		if (this.frozen) ctx.fillStyle = pSBC(0.2, ctx.fillStyle, '#aaa');
 		if (this.moving) ctx.strokeStyle = pSBC(0.5, ctx.strokeStyle);
 		if (this.fixed && hl == 'outline') ctx.strokeStyle = pSBC(0.2, ctx.strokeStyle);
-		if (hl == 'selected') ctx.strokeStyle = '#ddb';
+        if (hl == 'hovering') ctx.strokeStyle = '#aa9';
+		if (hl == 'selected') ctx.strokeStyle = '#ffc';
+        if (hl == 'moveOutline') {
+            ctx.strokeStyle = '#775';
+            ctx.setLineDash([5, 5]);
+        }
 		if (hl && !isNaN(hl)) ctx.strokeStyle = pSBC(0.5, ctx.strokeStyle);
 		ctx.lineWidth = (this instanceof TriPoly || this instanceof SquarePoly) ? 3 : 5;
 		ctx.beginPath();
@@ -50,8 +55,9 @@ class HexPoly {
 			ctx.lineTo(p.x, p.y);
 		});
 		ctx.closePath();
-		if (hl == 'outline') {
+		if (hl == 'outline' || hl == 'moveOutline') {
 			ctx.stroke();
+            ctx.setLineDash([]);
 			return;
 		}
 		if (!this.empty) ctx.fill();
@@ -419,7 +425,12 @@ class HexGrid extends MouseListener {
 		this.fixed.forEach(hex => hex.draw(ctx, 'outline'));
 		this.clearing.forEach(hex => hex.draw(ctx));
 		if (this.hovering) {
-			this.hovering.draw(ctx, hoverHl);
+            for (const axes of [[-1,0],[1,0],[0,-1],[0,1]]) {
+                const evt = {axes: [axes[0], axes[1]]};
+                const hex = this.scanForPoly(evt);
+                if (hex && this.adjacent(this.hovering, hex)) hex.draw(ctx, 'moveOutline');
+            }
+			this.hovering.draw(ctx, 'hovering');
 		}
 		if (this.selected) {
 			this.selected.draw(ctx, 'selected');
@@ -897,13 +908,13 @@ class HexGrid extends MouseListener {
 		do {
 			n = 0;
 			if (++count % 10 == 0) {
-				if (count > 100) {
+				if (count > 150) {
 					console.log('Giving up initCleanBoard');
 					finalCount++;
 					if (k || k == 0) 
 						this.gen.retryUpdate();
 				}
-				if (finalCount > 5) {
+				if (finalCount > 10) {
 					console.log('Final giving up');
 					return;
 				}
@@ -1147,21 +1158,27 @@ class HexGrid extends MouseListener {
 			if (!this.hovering || !this.hovering instanceof HexPoly) {
 				this.hovering = this.polys[0];
 			}
-			if (evt.axes[0] || evt.axes[1]) this.scanForPoly();
-			//if (evt.axes[1]) this.scanForPoly(1);
+            if (evt.LB) this.favor = 'left';
+            else if (evt.RB) this.favor = 'right';
+			if (evt.axes[0] || evt.axes[1]) {
+                const poly = this.scanForPoly(evt);
+                if (poly) this.hovering = poly;
+            }
 			if (evt.B) {
 				this.swapping = !this.swapping;
 				if (this.swapping) this.selected = this.hovering;
-			}
+                else this.selected = null;
+			} 
 			if ((evt.axes[0] || evt.axes[1]) && this.swapping && this.hovering) {
 				this.click(this.hovering.center);
 				if (this.selected) 
 					this.hovering = this.selected;
 			}
+            if (this.hovering.empty) this.swapping = false;
 			if (evt.A && this.hovering) {
 				this.rightClick(this.hovering.center);
 			}
-			if (evt.Sel) {
+			if (evt.Start) {
 				this.game.showMenu();
 			}
 		}
@@ -1175,21 +1192,20 @@ class HexGrid extends MouseListener {
 		this.size = size;
 	}
 
-	scanForPoly() {
+	scanForPoly(evt) {
 		if (!this.hovering) return;
 		const p = this.hovering.center;
-		const dirx = this.game.pad.axes[0];
-		const diry = this.game.pad.axes[1];
-		for (let i=1; i<6; i++) {
+		const dirx = evt.axes[0];
+		const diry = evt.axes[1];
+        const addx = this.favor == 'left' ? -2 : 2;
+		for (let i=1; i<3; i++) {
 			for (let j=0; j<this.polys.length; j++) {
 				const poly = this.polys[j];
-				//const q = (axis == 0) ? {x: p.x+dir*i*this.size/2, y: p.y} : {x: p.x, y: p.y+dir*i*this.size/2};
-				const q = {x: p.x+dirx*i*this.size/2, y: p.y+diry*i*this.size/2};
+				const q = {x: p.x+dirx*i*this.size/2+addx, y: p.y+diry*i*this.size/2};
 				if (poly.contains(q)) {
 					if (poly == this.hovering) 
 						break;
-					this.hovering = poly;
-					return;
+					return poly;
 				}
 			}
 		}

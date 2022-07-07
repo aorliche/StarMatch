@@ -2,44 +2,62 @@
 class ButtonState {
 	constructor(game) {
 		this.game = game;
-		this.A = false;
-		this.B = false;
-		this.Sel = false;
-		this.axes = [0,0];
-		this.axesAges = [0,0];
+        this.ages = {};
 	}
-
-	continuous(evt, axis, age) {
-		if (age - this.axesAges[axis] > 10) {
-			this.axesAges[axis] = age;
-			evt.axes[axis] = this.game.pad.axes[axis];
-		}
-	}
-
-	edge(evt, prop, button) {
-		if (this[prop] != this.game.pad.buttons[button].pressed) {
-			this[prop] = this.game.pad.buttons[button].pressed;
-			evt[prop] = this[prop];
-		}
-	}
-
-	edgeAxis(evt, axis, age) {
-		if (this.axes[axis] != this.game.pad.axes[axis]) {
-			this.axesAges[axis] = age;
-			this.axes[axis] = this.game.pad.axes[axis];
-			evt.axes[axis] = this.axes[axis];
-		}
-	}
+    
+    anyButton() {
+        let pressed = false;
+        this.game.pad.buttons.forEach(b => {
+            if (b.pressed) pressed = true;
+        });
+        return pressed;
+    }
 
 	getEvents(age) {
 		const evt = {axes: [0,0]};
-		this.edge(evt, 'A', 1);
-		this.edge(evt, 'B', 2);
-		this.edge(evt, 'Sel', 9);
-		this.edgeAxis(evt, 0, age);
-		this.edgeAxis(evt, 1, age);
-		this.continuous(evt, 0, age);
-		this.continuous(evt, 1, age);
+        // Buttons
+        for (let i=0; i<this.game.pad.buttons.length; i++) {
+            if (i in this.game.config.map) {
+                const name = this.game.config.map[i];
+                // Continuous
+                if (['LA', 'RA', 'UA', 'DA'].indexOf(name) != -1 && this.game.pad.buttons[i].pressed) {
+                    if (!this.ages[i] || age-this.ages[i] > 10) {
+                        switch (name) {
+                            case 'LA': evt.axes[0] = -1; break;
+                            case 'RA': evt.axes[0] = 1; break;
+                            case 'UA': evt.axes[1] = -1; break;
+                            case 'DA': evt.axes[1] = 1; break;
+                        }
+                        this.ages[i] = age;
+                    }
+                // Edge
+                } else if (['Start', 'B', 'A', 'LB', 'RB'].indexOf(name) != -1) {
+                    if (this.game.pad.buttons[i].pressed != this.ages[i]) {
+                        this.ages[i] = this.game.pad.buttons[i].pressed;
+                        evt[name] = this.ages[i];
+                    }
+                }
+            }                
+        }
+        // Axes
+        for (let i=0; i<this.game.pad.axes.length; i++) {
+            const value = Math.round(this.game.pad.axes[i]);
+            const key = `${i}:${value}`;
+            if (Object.keys(this.game.config.map).indexOf(key) != -1) {
+                const name = this.game.config.map[key];
+                // Continuous only
+                if (!this.ages[key] || age-this.ages[key] > 10) {
+                    console.log(name);
+                    switch (name) {
+                        case 'LA': evt.axes[0] = -1; break;
+                        case 'RA': evt.axes[0] = 1; break;
+                        case 'UA': evt.axes[1] = -1; break;
+                        case 'DA': evt.axes[1] = 1; break;
+                    }
+                    this.ages[key] = age;
+                }
+            }
+        }
 		return evt;
 	}
 }
@@ -53,6 +71,7 @@ class Game extends MouseListener {
 		this.ctx = canvas.getContext('2d');
 		this.title = new TitleScreen(copyDim(this.dim), this);
 		this.menu = new MenuScreen(copyDim(this.dim), this);
+        this.config = new PadConfigScreen(copyDim(this.dim), this);
 		this.grid = null;
 		this.animator = new Animator(this);
 		this.paused = true;
@@ -60,7 +79,6 @@ class Game extends MouseListener {
 		this.bg = new StarField(copyDim(this.dim));
 		this.sounds = new Sounds(this);
 		this.animator.start();
-		this.pad = null;
 		this.buttonState = new ButtonState(this);
 		this.age = 0;
 	}
@@ -68,7 +86,12 @@ class Game extends MouseListener {
 	// All mouse actions
 	action(type, p) {
 		if (this.level == 0) {
-			this.title[type](p);
+            if (this.config.visible) 
+                this.config[type](p);
+            else
+                this.title[type](p);
+        } else if (this.config.visible) {
+            this.config[type](p);
 		} else if (this.menu.visible) {
 			this.menu[type](p);
 		} else {
@@ -100,14 +123,20 @@ class Game extends MouseListener {
 		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
 		this.bg.draw(this.ctx);
 		if (this.level == 0) {
-			this.title.draw(this.ctx);
-		} else if (this.menu.visible) {
+            if (this.config.visible)
+                this.config.draw(this.ctx);
+            else
+                this.title.draw(this.ctx);
+		} else if (this.config.visible || this.menu.visible) {
 			this.ctx.save();
 			this.ctx.globalAlpha = 0.7;
 			this.grid.draw(this.ctx);
 			this.catalog.draw(this.ctx);
 			this.ctx.restore();
-			this.menu.draw(this.ctx);
+            if (this.config.visible)
+                this.config.draw(this.ctx);
+			else
+                this.menu.draw(this.ctx);
 		} else {
 			this.grid.draw(this.ctx);
 			this.catalog.draw(this.ctx);
@@ -139,6 +168,13 @@ class Game extends MouseListener {
 
 	tick() {
 		this.age++;
+        this.pad = null;
+        for (const pad of navigator.getGamepads()) {
+            if (pad) {
+                this.pad = pad;
+                break;
+            }
+        }
 		if (!this.paused) {
 			const timer = this.catalog.getTimer('Tectonic Activity');
 			if (timer && timer.active && timer.time < 5 && timer.time >= 0) {
@@ -156,12 +192,14 @@ class Game extends MouseListener {
 			if (this.pad) {
 				const evt = this.buttonState.getEvents(this.age);
 				if (this.menu.visible) {
-					if (evt.Sel) {
+					if (evt.Start) {
 						this.unpause();	
 					}
+                } else if (this.config.visible) {
+                    this.config.capture(this.pad);
 				} else if (this.level == 0) {
-					if (evt.Sel) 
-						this.newGame();
+					if (this.buttonState.anyButton()) 
+						this.config.visible = true;
 				}
 			}
 		}
@@ -237,6 +275,11 @@ class MenuScreen extends MouseListener {
 				{w: 120, h: 40}, e => this.game.newGame()),
 			new Button('Return', '#722', '#ddd', {x: this.dim.w/2-60, y: 200},
 				{w: 120, h: 40}, e => this.game.unpause()),
+            new Button('Configure Gamepad', '#722', '#ddd', {x: this.dim.w/2-100, y: 380},
+                {w: 200, h: 40}, e => {
+                    this.game.menu.visible = false;
+                    this.game.config.visible = true;
+                })
 		];
 		this.sliders = [
 			new Slider('Tectonic Activity', 
@@ -300,6 +343,186 @@ class MenuScreen extends MouseListener {
 		this.buttons.forEach(b => b.hovering = false);
 		this.sliders.forEach(s => s.mouseup(p)); // meant to be mouseup
 	}
+}
+
+class PadConfigScreen extends MouseListener {
+    constructor(dim, game) {
+        super();
+        this.dim = dim;
+        this.game = game;
+        this.map = {};
+        this.fieldIdx = 0;
+        this.fields = [
+            new PadButtonField(this, {text: 'Start', pos: {x: this.dim.w/2-80, y: 180}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'B', pos: {x: this.dim.w/2-80, y: 210}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'A', pos: {x: this.dim.w/2-80, y: 240}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'Left Bumper', name: 'LB', pos: {x: this.dim.w/2-80, y: 270}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'Right Bumper', name: 'RB', pos: {x: this.dim.w/2-80, y: 300}, dim: {w: 160, h: 22}}),
+            new PadButtonField(this, {text: 'Left Arrow', name: 'LA', pos: {x: this.dim.w/2-80, y: 330}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'Right Arrow', name: 'RA', pos: {x: this.dim.w/2-80, y: 360}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'Up Arrow', name: 'UA', pos: {x: this.dim.w/2-80, y: 390}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'Down Arrow', name: 'DA', pos: {x: this.dim.w/2-80, y: 420}, dim: {w: 160, h: 22}})
+        ];
+        this.buttons = [
+			new Button('Return', '#722', '#ddd', {x: this.dim.w/2-60, y: 480},
+				{w: 120, h: 40}, e => {
+                    if (this.game.level == 0) {
+                        this.game.config.visible = false;
+                        this.game.newGame();
+                    } else {
+                        this.game.menu.visible = true;
+                        this.game.config.visible = false;
+                    }
+                }),
+		];
+    }
+    
+    capture(pad) {
+        if (!this.unlock) return;
+        if (this.fieldIdx < this.fields.length) {
+            const field = this.fields[this.fieldIdx];
+            const res = field.capture(pad);
+            if (res) {
+                if (field.button || field.button === 0) this.map[field.button] = field.name;
+                else this.map[`${field.axis}:${field.value}`] = field.name;
+                this.fieldIdx++;
+            }
+        } else {
+            let pressed = false;
+            pad.buttons.forEach(b => {
+                if (b.pressed) pressed = true;
+            });
+            this.buttons[0].hovering = true;
+            if (pressed) this.buttons[0].click();
+        }
+    }
+    
+    click(p) {
+        this.buttons.forEach(b => {
+            if (b.contains(p)) b.click();
+        });
+        for (let i=0; i<this.fields.length; i++) {
+            if (this.fields[i].contains(p)) {
+                this.fieldIdx = i;
+                return;
+            }
+        }
+    }
+    
+    draw(ctx) {
+        drawText(ctx, 'Configure Gamepad', {x: this.dim.w/2, y: 100}, '#f00', 'Bold 36px Sans-Serif');
+        drawText(ctx, 'In space, a crowbar is almost always the right tool for the job....', {x: this.dim.w/2, y: 120},
+            '#f00', 'Bold 12px Sans-Serif');
+        drawText(ctx, 'Press button when field is highlighted', {x: this.dim.w/2, y: 165},
+            '#f00', 'Bold 16px Sans-Serif');
+        this.fields.concat(this.buttons).forEach(b => b.draw(ctx));
+    }
+    
+    get visible() {
+        return this.vis;
+    }
+    
+    mousemove(p) {
+        this.buttons.forEach(b => {
+           b.hovering = b.contains(p); 
+        });
+        this.fields.forEach(f => {
+           f.hovering = f.contains(p);
+        });
+    }
+    
+    set visible(vis) {
+        this.vis = vis;
+        get(this.game.menu, 'buttons', 'Configure Gamepad').hovering = false;
+        if (vis == true) {
+            this.fieldIdx = 0;
+            setTimeout(e => {
+                this.unlock = true;
+            }, 300);
+        } else {
+            this.unlock = false;
+        }
+    }
+}
+
+class PadButtonField {
+    constructor(config, params) {
+        this.params = params;
+        this.config = config;
+    }
+    
+    capture(pad) {
+        for (let i=0; i<pad.buttons.length; i++) {
+            if (pad.buttons[i].pressed) {
+                try {
+                    let prior = this.config.fields[this.config.fieldIdx-1];
+                    if (prior.button == i) 
+                        continue;
+                } catch (e) {}
+                this.button = i;
+                return true;
+            }
+        }
+        for (let i=0; i<pad.axes.length; i++) {
+            if (i > 4) break;
+            if (Math.abs(pad.axes[i]) > 0.1) {
+                const value = Math.round(pad.axes[i]);
+                try {
+                    let prior = this.config.fields[this.config.fieldIdx-1];
+                    if (prior.axis == i && prior.value == value) 
+                        continue;
+                } catch (e) {}
+                this.axis = i;
+                this.value = value;
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    contains(p) {
+		return p.x > this.params.pos.x && p.x < this.params.pos.x+this.params.dim.w &&
+			p.y > this.params.pos.y && p.y < this.params.pos.y+this.params.dim.h;
+	}
+    
+    draw(ctx) {
+        let textColor, text;
+		ctx.strokeStyle = '#4a4a4a';
+		ctx.lineWidth = 3;
+        if (this.config.fields[this.config.fieldIdx] == this) {
+            ctx.fillStyle = '#ddd';
+            textColor = '#722';
+            text = this.params.text + " (Press)";
+        } else if (this.button || this.button === 0 || this.axis || this.axis === 0) {
+            ctx.fillStyle = '#4d4';
+            textColor = '#ddd';
+            text = this.params.text;
+            if (this.button || this.button === 0) {
+                text += ` (Bu${this.button})`;
+            } else {
+                text += ` (Ax${this.axis}:${this.value})`;
+            }
+        } else {
+            if (this.hovering) {
+                ctx.fillStyle = '#ddd';
+                textColor = '#722';
+            } else {
+                ctx.fillStyle = '#a55';
+                textColor = '#ddd';
+            }
+            text = this.params.text;
+        }
+		ctx.fillRect(this.params.pos.x, this.params.pos.y, this.params.dim.w, this.params.dim.h);
+		ctx.strokeRect(this.params.pos.x, this.params.pos.y, this.params.dim.w, this.params.dim.h);
+        drawText(ctx, text, 
+            {x: this.params.pos.x+this.params.dim.w/2, y: this.params.pos.y+this.params.dim.h/2+8-4}, 
+            textColor, '12px Sans-Serif');
+    }
+    
+    get name() {
+        if (this.params.name) return this.params.name;
+        else return this.params.text;
+    }
 }
 
 class VictoryScreen extends MouseListener {
@@ -397,7 +620,7 @@ class StarField {
 	constructor(dim) {
 		this.dim = dim;
 		this.stars = [];
-		for (let i=0; i<100; i++) {
+		for (let i=0; i<200; i++) {
 			this.stars.push({x: randomInt(0, dim.w), y: randomInt(0, dim.h), age: randomInt(0, 300)});
 		}
 		this.age = 1;
@@ -405,7 +628,7 @@ class StarField {
 
 	draw(ctx) {
 		this.stars.forEach(s => {
-			const b = Math.abs(15-Math.floor(((this.age+s.age)%300)/10)).toString(16);
+			const b = Math.abs(9-Math.floor(((this.age+s.age)%200)/10)).toString(16);
 			ctx.fillStyle = `#${b}${b}${b}`;
 			ctx.fillRect(s.x, s.y, 3, 3);
 		});
