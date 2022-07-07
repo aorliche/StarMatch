@@ -15,7 +15,7 @@
 <html>
 <head>
 <title>Star Match</title>
-<link rel='icon' href='/Images/icon.png'>
+<link rel='icon' href='Images/icon.png'>
 <script>
 	const sounds = <?= array_to_js_object($sounds) ?>;
 	const music = <?= array_to_js_object($music) ?>;
