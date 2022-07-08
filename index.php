@@ -10,6 +10,12 @@
 		}
 		return '{'.implode(', ', $newArr).'}';
 	}
+    
+    // https://stackoverflow.com/questions/13640109/how-to-prevent-browser-cache-for-php-site
+    // https://stackoverflow.com/questions/7413234/how-to-prevent-caching-of-my-javascript-file
+    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+    header("Cache-Control: post-check=0, pre-check=0", false);
+    header("Pragma: no-cache");
 ?>
 <!DOCTYPE html>
 <html>
@@ -20,16 +26,16 @@
 	const sounds = <?= array_to_js_object($sounds) ?>;
 	const music = <?= array_to_js_object($music) ?>;
 </script>
-<script src='script/interface.js'></script>
-<script src='script/audio.js'></script>
-<script src='script/game.js'></script>
-<script src='script/functions.js'></script>
-<script src='script/grid.js'></script>
-<script src='script/color.js'></script>
-<script src='script/shapes.js'></script>
-<script src='script/animation.js'></script>
-<script src='script/screens.js'></script>
-<link rel='stylesheet' href='style/game.css'>
+<script src='script/interface.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/audio.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/game.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/functions.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/grid.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/color.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/shapes.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/animation.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/screens.js?nocache=<?= uniqid(); ?>'></script>
+<link rel='stylesheet' href='style/game.css?nocache=<?= uniqid(); ?>'>
 </head>
 <body>
 <canvas style='float: left;' id='game' width='500' height='600'></canvas>
