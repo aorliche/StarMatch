@@ -317,20 +317,29 @@ class HexGrid extends MouseListener {
 			this.initFastChains();
 		}
 	}
+    
+    // Requires valid target
+    blast(poly) {
+        const blastCounter = get(this.game.catalog, 'counters', 'Blasts');
+        if (blastCounter.count > 0) {
+            this.clearSingle(poly);
+            blastCounter.count--;
+        }
+    }
 
 	click(p) {
 		const hex = this.findPoly(p);
+        // Deselect
 		if (!hex || hex.moving || (this.selected && hex == this.selected)) {
-            // For falling
+            // Deselected fixed hexes fall (clear when it gets there)
 			if (this.selected && hex == this.selected) {
 				this.selected.fixed = false;
 				this.fixed = this.fixed.filter(h => h != hex);
 				this.fall();
 			}
 			this.selected = null;
-			return;
-		}
-		if (this.selected && !this.selected.moving && this.adjacent(hex, this.selected)) {
+        // Swap
+		} else if (this.selected && !this.selected.moving && this.adjacent(hex, this.selected)) {
 			if (!this.lost) {
 				this.swap(hex, this.selected);
 				if (this.ptype == 'tri') {
@@ -338,10 +347,6 @@ class HexGrid extends MouseListener {
                         this.selected.fixed = true;
                         this.fixed.push(this.selected);
                     }
-                    /*if (!hex.fixed) {
-                        hex.fixed = true;
-                        this.fixed.push(hex);
-                    }*/
 				}
 				this.clear();
 				this.fall();
@@ -349,6 +354,7 @@ class HexGrid extends MouseListener {
 				if (this.game.catalog) 
 					this.game.catalog.moves += 1;
 			}
+        // Reselect or deselect if empty
 		} else {
 			this.selected = (hex.empty) ? null : hex;
 		}
@@ -398,14 +404,7 @@ class HexGrid extends MouseListener {
 		const toClear = this.getThreeInARow();
 		if (toClear.length > 0) {
 			toClear.forEach(hex => {
-				const hole = makePoly(this.ptype, copyPoint(hex.center), this.size, 'empty', this.angle, [...hex.chains]);
-				if (hex == this.selected) {
-					this.selected = hole;
-				}
-				addLoc(this.polyMap, hex.chains, hole);
-				this.polys.push(hole);
-				this.animator.clear(hex);
-				this.clearing.push(hex);
+				this.clearSingle(hex)
 			});
 			this.polys = this.polys.filter(hex => toClear.indexOf(hex) == -1);
 			this.fixed = this.fixed.filter(hex => toClear.indexOf(hex) == -1);
@@ -418,6 +417,17 @@ class HexGrid extends MouseListener {
 			this.scheduleExpand();
 		}
 	}
+    
+    clearSingle(hex) {
+        const hole = makePoly(this.ptype, copyPoint(hex.center), this.size, 'empty', this.angle, [...hex.chains]);
+        if (hex == this.selected) {
+            this.selected = hole;
+        }
+        addLoc(this.polyMap, hex.chains, hole);
+        this.polys.push(hole);
+        this.animator.clear(hex);
+        this.clearing.push(hex);
+    }
 
 	draw(ctx) {
 		this.polys.forEach(hex => hex.draw(ctx));
@@ -1140,8 +1150,6 @@ class HexGrid extends MouseListener {
 		if (this.polys.length > 0) {
             if (!this.selected) 
                 this.selected = this.polys.filter(p => !p.empty)[0] ?? this.polys[0];
-            if (evt.LB) this.favor = 'left';
-            else if (evt.RB) this.favor = 'right';
             if (this.selected.empty) 
                 this.swapping = false;
 			if (evt.axes[0] || evt.axes[1]) {
@@ -1154,14 +1162,25 @@ class HexGrid extends MouseListener {
                         this.selected = scanPoly;
                 }
 			}
-            if (!this.selected) {
-                console.log('got here bad');
+            if (evt.LB && evt.RB) {
+                this.expandFromBelow();
+            } else if (evt.LB) {
+                this.favor = 'left';
+            } else if (evt.RB) {
+                this.favor = 'right';
             }
 			if (evt.A) {
 				this.swapping = !this.swapping;
 			} 
             if (evt.B) {
                 this.rightClick(this.selected.center);
+            }
+            if (evt.X) {
+                if (this.selected && !this.selected.empty)
+                    this.blast(this.selected);
+            }
+            if (evt.Y) {
+               this.unfreezeAll();
             }
 			if (evt.Start) {
 				this.game.showMenu();
@@ -1177,9 +1196,8 @@ class HexGrid extends MouseListener {
 		this.size = size;
 	}
 
+    // Requires selected to not be null
 	scanForPoly(evt) {
-		//if (!this.hovering) return;
-		//const p = this.hovering.center;
         const p = this.selected.center;
 		const dirx = evt.axes[0];
 		const diry = evt.axes[1];
@@ -1189,8 +1207,6 @@ class HexGrid extends MouseListener {
 				const poly = this.polys[j];
 				const q = {x: p.x+dirx*i*this.size/2+addx, y: p.y+diry*i*this.size/2};
 				if (poly.contains(q)) {
-					/*if (poly == this.hovering) 
-						break;*/
                     if (poly == this.selected) 
                         break;
 					return poly;
@@ -1218,17 +1234,11 @@ class HexGrid extends MouseListener {
 		addLoc(this.polyMap, [...hex1.chains], hex2);
 		[hex1.chains, hex2.chains] = [hex2.chains, hex1.chains];
 		[hex1.center, hex2.center] = [hex2.center, hex1.center];
-		/*hex1.fixed = false;
-		hex2.fixed = false;
-		this.fixed = this.fixed.filter(hex => {
-			if (hex == hex1 || hex == hex2) return false;
-			else return true;
-		});*/
 		this.game.catalog.getCounter('Moves').count++;
 		this.game.sounds.play('swap', {keep: true});
 	}
 
-	unfreeze() {
+	unfreezeAll() {
 		this.polys.forEach(hex => {
 			if (hex.frozen) {
 				hex.frozen = false;

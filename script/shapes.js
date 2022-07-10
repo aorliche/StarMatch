@@ -51,22 +51,9 @@ class CatalogItem {
 			w *= 1.2; 
 			h *= 1.2;
 		}
-		/*if (!this.score) {
-			ctx.globalAlpha = 0.2;
-		} else {*/
-			//if (this.alpha > 0) {
-				//ctx.strokeStyle = '#4a4a4a';
-				//ctx.lineWidth = 2;
-				//ctx.fillStyle = pSBC(0.5*Math.max(this.alpha,0), getTypeColor(this.type));
-				//ctx.globalAlpha = this.alpha;
-				//ctx.fillRect(this.center.x-this.dim.w/2, this.center.y-this.dim.h/2, this.dim.w, this.dim.h);
-				//ctx.strokeRect(this.center.x-this.dim.w/2, this.center.y-this.dim.h/2, this.dim.w, this.dim.h);
-				//ctx.globalAlpha = 1.0;
-			//}
-			drawText(ctx, this.count, {x: this.topLeft.x+this.dim.w/2, y: this.topLeft.y+this.dim.h-6}, 'white', 'Bold 12px Sans-Serif');
-		//}
+        drawText(ctx, this.count, {x: this.topLeft.x+this.dim.w/2, y: this.topLeft.y+this.dim.h-6}, 
+            'white', 'Bold 12px Sans-Serif');
 		ctx.drawImage(im, this.topLeft.x+this.dim.w/2-w/2, this.topLeft.y+this.dim.h/2-h/2-10, w, h);
-	//	ctx.globalAlpha = 1.0;
 	}
 
 	frame() {
@@ -91,15 +78,15 @@ class Catalog extends MouseListener {
 			new Counter('Level', '#ddd', {x:460, y:25, rjust:true}, {x:465, y:25, ljust:true}, 18),
 			new Counter('Moves', '#ddd', {x:460, y:50, rjust:true}, {x:465, y:50, ljust:true}, 12),
 			new Counter('Freezes', '#ddd', {x:460, y:65, rjust:true}, {x:465, y:65, ljust:true}, 12, 3),
+            new Counter('Blasts', '#ddd', {x:460, y:80, rjust:true}, {x:465, y:80, ljust:true}, 12, 1)
 		];
 		this.buttons = [
 			new Button('Menu', '#611', '#ddd', {x: 15, y: 15}, {w: 90, h: 20}, e => this.game.showMenu(), 12),
-			new Button('Unfreeze All', '#116', '#ddd', {x: 15, y: 45}, {w: 90, h: 20}, e => this.game.grid.unfreeze(), 12)
+			new Button('Unfreeze All', '#116', '#ddd', {x: 15, y: 45}, {w: 90, h: 20}, e => this.game.grid.unfreezeAll(), 12)
 		];
 		this.timers = [
 			new Timer('Tectonic Activity', '#ddd', {x:240, y:80}, 12, 20, 
-				timer => {this.game.grid.expandFromBelow()}, 
-				e => this.game.animator.start(), true)
+				timer => {this.game.grid.expandFromBelow()}, true)
 		];
 	}
 
@@ -265,7 +252,6 @@ class Timer {
 		} else {
 			this.to = null;
 			this.active = false;
-			console.log(this.time);
 			if (!isNaN(this.time)) {
 				this.cb(this);
 				if (this.loop) {

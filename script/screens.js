@@ -43,7 +43,7 @@ class ButtonState {
                 if (['LA', 'RA', 'UA', 'DA'].indexOf(name) != -1 && this.game.pad.buttons[i].pressed) {
                     this.arrowEvent(evt, i, name, age);
                 // Edge
-                } else if (['Start', 'B', 'A', 'LB', 'RB'].indexOf(name) != -1) {
+                } else if (['Start', 'B', 'A', 'LB', 'RB', 'X', 'Y'].indexOf(name) != -1) {
                     if (this.game.pad.buttons[i].pressed != this.ages[i]) {
                         this.ages[i] = this.game.pad.buttons[i].pressed;
                         evt[name] = this.ages[i];
@@ -366,10 +366,12 @@ class PadConfigScreen extends MouseListener {
             new PadButtonField(this, {text: 'Left Arrow', name: 'LA', pos: {x: this.dim.w/2-80, y: 330}, dim: {w: 160, h: 22}}), 
             new PadButtonField(this, {text: 'Right Arrow', name: 'RA', pos: {x: this.dim.w/2-80, y: 360}, dim: {w: 160, h: 22}}), 
             new PadButtonField(this, {text: 'Up Arrow', name: 'UA', pos: {x: this.dim.w/2-80, y: 390}, dim: {w: 160, h: 22}}), 
-            new PadButtonField(this, {text: 'Down Arrow', name: 'DA', pos: {x: this.dim.w/2-80, y: 420}, dim: {w: 160, h: 22}})
+            new PadButtonField(this, {text: 'Down Arrow', name: 'DA', pos: {x: this.dim.w/2-80, y: 420}, dim: {w: 160, h: 22}}),
+            new PadButtonField(this, {text: 'X', pos: {x: this.dim.w/2-80, y: 450}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'Y', pos: {x: this.dim.w/2-80, y: 480}, dim: {w: 160, h: 22}}), 
         ];
         this.buttons = [
-			new Button('Return', '#722', '#ddd', {x: this.dim.w/2-60, y: 480},
+			new Button('Return', '#722', '#ddd', {x: this.dim.w/2-60, y: 540},
 				{w: 120, h: 40}, e => {
                     if (this.game.level == 0) {
                         this.game.config.visible = false;
