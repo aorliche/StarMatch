@@ -321,6 +321,7 @@ class HexGrid extends MouseListener {
 	click(p) {
 		const hex = this.findPoly(p);
 		if (!hex || hex.moving || (this.selected && hex == this.selected)) {
+            // For falling
 			if (this.selected && hex == this.selected) {
 				this.selected.fixed = false;
 				this.fixed = this.fixed.filter(h => h != hex);
@@ -332,9 +333,15 @@ class HexGrid extends MouseListener {
 		if (this.selected && !this.selected.moving && this.adjacent(hex, this.selected)) {
 			if (!this.lost) {
 				this.swap(hex, this.selected);
-				if (this.ptype == 'tri' && !this.selected.fixed) {
-					this.selected.fixed = true;
-					this.fixed.push(this.selected);
+				if (this.ptype == 'tri') {
+                    if (!this.selected.fixed) {
+                        this.selected.fixed = true;
+                        this.fixed.push(this.selected);
+                    }
+                    /*if (!hex.fixed) {
+                        hex.fixed = true;
+                        this.fixed.push(hex);
+                    }*/
 				}
 				this.clear();
 				this.fall();
@@ -342,9 +349,6 @@ class HexGrid extends MouseListener {
 				if (this.game.catalog) 
 					this.game.catalog.moves += 1;
 			}
-			/*if (this.selected.moving && !hex.empty) {
-				this.selected = null;
-			}*/
 		} else {
 			this.selected = (hex.empty) ? null : hex;
 		}
@@ -352,23 +356,23 @@ class HexGrid extends MouseListener {
 
 	rightClick(p) {
 		const hex = this.findPoly(p);
-		if (hex && !hex.moving) {
+		if (hex && !hex.empty && !hex.moving) {
 			if (!hex.frozen && this.game.catalog.getCounter('Freezes').count > 0) {
-				if (this.ptype == 'tri' && !hex.fixed) {
+				/*if (this.ptype == 'tri' && !hex.fixed) {
 					this.fixed.push(hex);
 					hex.fixed = true;
-				}
+				}*/
 				hex.frozen = true;
 				this.game.catalog.getCounter('Freezes').count--;
 			} else if (hex.frozen) {
-				this.fixed = this.fixed.filter(h => h != hex);
+				//this.fixed = this.fixed.filter(h => h != hex);
 				hex.frozen = false;
-				hex.fixed = false;
+				//hex.fixed = false;
 				this.game.catalog.getCounter('Freezes').count++;
 			}
+            this.clear();
+            this.fall();
 		}
-		this.clear();
-		this.fall();
 	}
 
 	checkLoss() {
@@ -398,15 +402,10 @@ class HexGrid extends MouseListener {
 				if (hex == this.selected) {
 					this.selected = hole;
 				}
-				if (hex == this.hovering) {
-					this.hovering = hole;
-				}
 				addLoc(this.polyMap, hex.chains, hole);
 				this.polys.push(hole);
 				this.animator.clear(hex);
 				this.clearing.push(hex);
-				this.swapping = false;
-				this.selected = null;
 			});
 			this.polys = this.polys.filter(hex => toClear.indexOf(hex) == -1);
 			this.fixed = this.fixed.filter(hex => toClear.indexOf(hex) == -1);
@@ -424,36 +423,28 @@ class HexGrid extends MouseListener {
 		this.polys.forEach(hex => hex.draw(ctx));
 		this.fixed.forEach(hex => hex.draw(ctx, 'outline'));
 		this.clearing.forEach(hex => hex.draw(ctx));
-		if (this.hovering) {
+		if (this.game.pad && this.selected) {
             for (const axes of [[-1,0],[1,0],[0,-1],[0,1]]) {
                 const evt = {axes: [axes[0], axes[1]]};
                 const hex = this.scanForPoly(evt);
-                if (hex && this.adjacent(this.hovering, hex)) hex.draw(ctx, 'moveOutline');
+                if (hex && this.adjacent(this.selected, hex)) hex.draw(ctx, 'moveOutline');
             }
-			this.hovering.draw(ctx, 'hovering');
 		}
+        if (this.hovering)
+            this.hovering.draw(ctx, 'hovering');
 		if (this.selected) {
-			this.selected.draw(ctx, 'selected');
+            if (this.game.pad && !this.swapping)
+                this.selected.draw(ctx, 'hovering');
+            else
+                this.selected.draw(ctx, 'selected');
 		}
-		/*for (let loc of this.getLocations()) {
-			drawCircle(ctx, loc[0], 5, 'red');
-		}*/
-		//drawCircle(ctx, this.center, 5, 'red');
 		if (this.game.displayChains) {
 			this.polys.forEach(hex => drawText(ctx, `${hex.chains}`, hex.center, 'red', 'Bold 18px Sans-Serif', '#4a0000'));
 		}
-		//drawLine(ctx, {x: 0, y: 100}, {x: 500, y: 100}, '#4a4a4a', 5);
-		if (this.lost) {
+		/*if (this.lost) {
 			drawText(ctx, "Oh no!", {x: 250, y: 250}, 'red', 'Bold 48px Sans-Serif', '#4a4a4a');
 			drawText(ctx, "You didn't make it..", {x: 250, y: 300}, 'red', 'Bold 48px Sans-Serif', '#4a4a4a');
-		} /*else {
-			drawText(ctx, 'Left click to move', {x: 10, y: 100, ljust: true}, 'white', '16px Sans-Serif');
-			drawText(ctx, 'Right click to freeze', {x: 10, y: 120, ljust: true}, 'white', '16px Sans-Serif');
-			drawText(ctx, 'Good luck Elon!', {x: 10, y: 140, ljust: true}, 'white', '16px Sans-Serif');
-		}*/
-		//this.game.catalog.draw(ctx);
-		//this.buttons.forEach(b => b.draw(ctx, this.hovering == b));
-		//this.drawHud(ctx);
+		} */
 	}
 
 	expandFromBelow() {
@@ -510,7 +501,7 @@ class HexGrid extends MouseListener {
 				for (let i=0; i<this.polys.length; i++) {
 					const p = this.polys[i];
 					if (p == h) continue;
-					if (h.chains[0] == this.limits.i[1]) return true;
+					if (h.chains[0] == this.limits.i[1]) return true; // bottom row
 					if (!p.empty && p.center.y > h.center.y && distance(h.center, p.center) < 2/Math.sqrt(3)*this.size+5) {
 						return true;
 					}
@@ -527,11 +518,8 @@ class HexGrid extends MouseListener {
 					const prev = queryIndex(this.polyMap, chain[j-1]); 
 					const cur = queryIndex(this.polyMap, chain[j]); 
 					if (cur && prev && cur.empty && !prev.empty && !prev.moving && !prev.fixed) {
-						if (cur.selected) {
+						if (this.selected == cur) {
 							this.selected = prev;
-						}
-						if (this.game.pad && this.hovering == cur) {
-							this.hovering = prev;
 						}
 						prev.chains = [...chain[j]];
 						cur.chains = [...chain[j-1]];
@@ -548,21 +536,15 @@ class HexGrid extends MouseListener {
 		if (playSound) {
 			this.game.sounds.play('fall', {keep: true});
 		}
-		// Reselect closest one to empty
+		// Reselect closest one to the cleared one
 		if (this.selected && this.selected.empty) {
-			const idcs = nearbyIndices(this.selected.chains, 1, this.ptype);
-			for (let i=0; i<idcs.length; i++) {
-				const hex = queryIndex(this.polyMap, idcs[i]);
-				if (hex && !hex.empty && !this.selected.moving) {
-					this.selected = hex;
-					return;
-				}
-			}
-			this.selected = null;
+            const copy = [...this.polys].filter(p => !p.empty);
+            copy.sort((a,b) => 
+                distance(a.center, this.selected.center) - 
+                distance(b.center, this.selected.center));
+            this.selected = copy[0];
 		}
 	}
-
-
 
 	findPoly(p) {
 		for (let i=0; i<this.polys.length; i++) {
@@ -1154,30 +1136,33 @@ class HexGrid extends MouseListener {
 	}
 
 	pressButtons(evt) {
+        let scanPoly = null;
 		if (this.polys.length > 0) {
-			if (!this.hovering || !this.hovering instanceof HexPoly) {
-				this.hovering = this.polys[0];
-			}
+            if (!this.selected) 
+                this.selected = this.polys.filter(p => !p.empty)[0] ?? this.polys[0];
             if (evt.LB) this.favor = 'left';
             else if (evt.RB) this.favor = 'right';
+            if (this.selected.empty) 
+                this.swapping = false;
 			if (evt.axes[0] || evt.axes[1]) {
-                const poly = this.scanForPoly(evt);
-                if (poly) this.hovering = poly;
+                const scanPoly = this.scanForPoly(evt);
+                if (scanPoly) {
+                    if (this.swapping) {    
+                        if (this.adjacent(this.selected, scanPoly))                    
+                            this.click(scanPoly.center);
+                    } else
+                        this.selected = scanPoly;
+                }
+			}
+            if (!this.selected) {
+                console.log('got here bad');
             }
-			if (evt.B) {
+			if (evt.A) {
 				this.swapping = !this.swapping;
-				if (this.swapping) this.selected = this.hovering;
-                else this.selected = null;
 			} 
-			if ((evt.axes[0] || evt.axes[1]) && this.swapping && this.hovering) {
-				this.click(this.hovering.center);
-				if (this.selected) 
-					this.hovering = this.selected;
-			}
-            if (this.hovering.empty) this.swapping = false;
-			if (evt.A && this.hovering) {
-				this.rightClick(this.hovering.center);
-			}
+            if (evt.B) {
+                this.rightClick(this.selected.center);
+            }
 			if (evt.Start) {
 				this.game.showMenu();
 			}
@@ -1193,8 +1178,9 @@ class HexGrid extends MouseListener {
 	}
 
 	scanForPoly(evt) {
-		if (!this.hovering) return;
-		const p = this.hovering.center;
+		//if (!this.hovering) return;
+		//const p = this.hovering.center;
+        const p = this.selected.center;
 		const dirx = evt.axes[0];
 		const diry = evt.axes[1];
         const addx = this.favor == 'left' ? -2 : 2;
@@ -1203,8 +1189,10 @@ class HexGrid extends MouseListener {
 				const poly = this.polys[j];
 				const q = {x: p.x+dirx*i*this.size/2+addx, y: p.y+diry*i*this.size/2};
 				if (poly.contains(q)) {
-					if (poly == this.hovering) 
-						break;
+					/*if (poly == this.hovering) 
+						break;*/
+                    if (poly == this.selected) 
+                        break;
 					return poly;
 				}
 			}
@@ -1230,12 +1218,12 @@ class HexGrid extends MouseListener {
 		addLoc(this.polyMap, [...hex1.chains], hex2);
 		[hex1.chains, hex2.chains] = [hex2.chains, hex1.chains];
 		[hex1.center, hex2.center] = [hex2.center, hex1.center];
-		hex1.fixed = false;
+		/*hex1.fixed = false;
 		hex2.fixed = false;
 		this.fixed = this.fixed.filter(hex => {
 			if (hex == hex1 || hex == hex2) return false;
 			else return true;
-		});
+		});*/
 		this.game.catalog.getCounter('Moves').count++;
 		this.game.sounds.play('swap', {keep: true});
 	}

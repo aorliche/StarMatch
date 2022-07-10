@@ -13,6 +13,7 @@ class Animator {
 	clear(hex) {
 		const speed = 5+5*Math.random();
 		hex.moving = true;
+        hex.cleared = true;
 		this.infos.push({hex: hex, speed: speed, to: [{x: hex.center.x, y: 1000}]});
 		this.start();
 	}

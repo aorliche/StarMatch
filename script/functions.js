@@ -149,7 +149,7 @@ function addLocEnd(loc, part, item) {
 	}
 }
 
-function nearbyIndices(idx, r, type) {
+/*function nearbyIndices(idx, r, type) {
 	const res = [];
 	const [ii,jj,kk] = idx;
 	for (let i=ii-r; i<=ii+r; i++) {
@@ -166,7 +166,7 @@ function nearbyIndices(idx, r, type) {
 	}
 	res.sort((a,b) => Math.abs(a[0]-ii)-Math.abs(b[0]-ii)+Math.abs(a[1]-jj)-Math.abs(b[1]-jj));
 	return res;
-}
+}*/
 
 function secondsToString(sec) {
 	const min = Math.floor(sec/60);

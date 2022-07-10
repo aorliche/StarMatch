@@ -3,6 +3,9 @@ class ButtonState {
 	constructor(game) {
 		this.game = game;
         this.ages = {};
+        this.interval = {};
+        this.intervalDefault = 6;
+        this.intervalFirst = 12;
 	}
     
     anyButton() {
@@ -11,6 +14,23 @@ class ButtonState {
             if (b.pressed) pressed = true;
         });
         return pressed;
+    }
+    
+    arrowEvent(evt, key, name, age) {
+        if (!this.ages[key] || age-this.ages[key] >= this.interval[key]) {
+            const diff = this.ages[key] ? age-this.ages[key] : this.intervalFirst+1;
+            if (diff > this.intervalFirst)
+                this.interval[key] = this.intervalFirst;
+            else if (diff == this.intervalFirst)
+                this.interval[key] = this.intervalDefault;
+            switch (name) {
+                case 'LA': evt.axes[0] = -1; break;
+                case 'RA': evt.axes[0] = 1; break;
+                case 'UA': evt.axes[1] = -1; break;
+                case 'DA': evt.axes[1] = 1; break;
+            }
+            this.ages[key] = age;
+        }
     }
 
 	getEvents(age) {
@@ -21,15 +41,7 @@ class ButtonState {
                 const name = this.game.config.map[i];
                 // Continuous
                 if (['LA', 'RA', 'UA', 'DA'].indexOf(name) != -1 && this.game.pad.buttons[i].pressed) {
-                    if (!this.ages[i] || age-this.ages[i] > 10) {
-                        switch (name) {
-                            case 'LA': evt.axes[0] = -1; break;
-                            case 'RA': evt.axes[0] = 1; break;
-                            case 'UA': evt.axes[1] = -1; break;
-                            case 'DA': evt.axes[1] = 1; break;
-                        }
-                        this.ages[i] = age;
-                    }
+                    this.arrowEvent(evt, i, name, age);
                 // Edge
                 } else if (['Start', 'B', 'A', 'LB', 'RB'].indexOf(name) != -1) {
                     if (this.game.pad.buttons[i].pressed != this.ages[i]) {
@@ -45,17 +57,7 @@ class ButtonState {
             const key = `${i}:${value}`;
             if (Object.keys(this.game.config.map).indexOf(key) != -1) {
                 const name = this.game.config.map[key];
-                // Continuous only
-                if (!this.ages[key] || age-this.ages[key] > 10) {
-                    console.log(name);
-                    switch (name) {
-                        case 'LA': evt.axes[0] = -1; break;
-                        case 'RA': evt.axes[0] = 1; break;
-                        case 'UA': evt.axes[1] = -1; break;
-                        case 'DA': evt.axes[1] = 1; break;
-                    }
-                    this.ages[key] = age;
-                }
+                this.arrowEvent(evt, key, name, age);
             }
         }
 		return evt;
@@ -155,6 +157,7 @@ class Game extends MouseListener {
 		}
 		this.animator.gridInfos = [];
 		this.catalog.getCounter('Level').count = this.level;
+        this.catalog.getCounter('Freezes').count = 3;
 		this.catalog.getButton('Unfreeze All').cb = () => this.grid.unfreeze();
 		this.catalog.getTimer('Tectonic Activity').setAndStart(parseInt(get(this.menu, 'sliders', 'Tectonic Activity').value));
 		this.grid = new HexGrid(this);
@@ -198,7 +201,9 @@ class Game extends MouseListener {
                 } else if (this.config.visible) {
                     this.config.capture(this.pad);
 				} else if (this.level == 0) {
-					if (this.buttonState.anyButton()) 
+                    if (Object.keys(evt).length > 1) // always have axes key
+                        this.newGame();
+                    else if (this.buttonState.anyButton()) 
 						this.config.visible = true;
 				}
 			}
@@ -354,8 +359,8 @@ class PadConfigScreen extends MouseListener {
         this.fieldIdx = 0;
         this.fields = [
             new PadButtonField(this, {text: 'Start', pos: {x: this.dim.w/2-80, y: 180}, dim: {w: 160, h: 22}}), 
-            new PadButtonField(this, {text: 'B', pos: {x: this.dim.w/2-80, y: 210}, dim: {w: 160, h: 22}}), 
-            new PadButtonField(this, {text: 'A', pos: {x: this.dim.w/2-80, y: 240}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'A', pos: {x: this.dim.w/2-80, y: 210}, dim: {w: 160, h: 22}}), 
+            new PadButtonField(this, {text: 'B', pos: {x: this.dim.w/2-80, y: 240}, dim: {w: 160, h: 22}}), 
             new PadButtonField(this, {text: 'Left Bumper', name: 'LB', pos: {x: this.dim.w/2-80, y: 270}, dim: {w: 160, h: 22}}), 
             new PadButtonField(this, {text: 'Right Bumper', name: 'RB', pos: {x: this.dim.w/2-80, y: 300}, dim: {w: 160, h: 22}}),
             new PadButtonField(this, {text: 'Left Arrow', name: 'LA', pos: {x: this.dim.w/2-80, y: 330}, dim: {w: 160, h: 22}}), 
