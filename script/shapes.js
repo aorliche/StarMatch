@@ -199,7 +199,7 @@ class Timer {
 	}
 
 	draw(ctx) {
-		if (!this.active || isNaN(this.time) || this.time > 10 || this.time < 0) return;
+		if (!this.active || isNaN(this.time) || /*this.time > 10 ||*/ this.time < 0) return;
 		const tm = drawText(ctx, this.text, this.pText, this.color, this.font);
 		if (this.pTime == null) {
 			this.pTime = {x: this.pText.x+tm.width/2+5, y: this.pText.y, ljust:true};
@@ -276,7 +276,7 @@ class Button {
 		this.cb = cb;
 		this.hovering = false;
 		this.fontSize = fontSize ?? 16; 
-		this.font = `Bold ${this.fontSize}px Sans-Serif`;
+		this.font = `Bold ${this.fontSize}px Bahnschrift, Sans-Serif`;
 	}
 
 	click() {
@@ -298,4 +298,28 @@ class Button {
 		const textColor = (hover) ? this.color : this.hoverColor;
 		drawText(ctx, this.text, {x: this.topLeft.x+this.dim.w/2, y: this.topLeft.y+this.dim.h/2+this.fontSize/2-2}, textColor, this.font);
 	}
+}
+
+class Notification {
+    constructor(game, params) {
+        this.game = game;
+        this.params = params;
+        this.age = 0;
+        this.params.lifetime = this.params.lifetime ?? 2*30;
+        this.params.pos = this.params.pos ?? {x: this.game.grid.dim.w/2, y: this.game.grid.dim.h/3};
+        this.params.color = this.params.color ?? '#f00';
+        this.params.font = this.params.font ?? 'Bold 16px Bahnscrift, Sans-Serif';
+    }
+    
+    draw(ctx) {
+        const pos = copyPoint(this.params.pos);
+        pos.y -= this.age/this.params.lifetime*80;
+        drawText(ctx, this.params.text, pos, this.params.color, this.params.font);
+    }
+    
+    tick() {
+        if (this.age++ > this.params.lifetime) {
+            this.game.notifications.splice(this.game.notifications.indexOf(this), 1);
+        }
+    }
 }

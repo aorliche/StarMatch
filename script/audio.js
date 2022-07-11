@@ -65,10 +65,12 @@ class Sounds {
 	}
 
 	playMusic(name) {
+        this.ctx.resume();
 		if (!this.music[name]) return;
 		for (const n in this.music) {
 			if (n != name) {
-				this.music[n].mediaElement.stop();
+				this.music[n].mediaElement.pause();
+                this.music[n].mediaElement.currentTime = 0;
 			}
 		}
 		this.music[name].mediaElement.loop = true;

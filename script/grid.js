@@ -323,7 +323,14 @@ class HexGrid extends MouseListener {
         const blastCounter = get(this.game.catalog, 'counters', 'Blasts');
         if (blastCounter.count > 0) {
             this.clearSingle(poly);
+            this.fall();
+            this.game.sounds.play('blast');
             blastCounter.count--;
+            if (this.polys.filter(p => !p.empty).length == 0) {
+                this.game.winLevel();
+            } else if (!this.solveable()) {
+                this.scheduleExpand();
+            }
         }
     }
 
@@ -338,6 +345,7 @@ class HexGrid extends MouseListener {
 				this.fall();
 			}
 			this.selected = null;
+            this.game.padState.using = false;
         // Swap
 		} else if (this.selected && !this.selected.moving && this.adjacent(hex, this.selected)) {
 			if (!this.lost) {
@@ -360,24 +368,18 @@ class HexGrid extends MouseListener {
 		}
 	}
 
+    // Freeze and unfreeze
 	rightClick(p) {
 		const hex = this.findPoly(p);
 		if (hex && !hex.empty && !hex.moving) {
 			if (!hex.frozen && this.game.catalog.getCounter('Freezes').count > 0) {
-				/*if (this.ptype == 'tri' && !hex.fixed) {
-					this.fixed.push(hex);
-					hex.fixed = true;
-				}*/
 				hex.frozen = true;
 				this.game.catalog.getCounter('Freezes').count--;
 			} else if (hex.frozen) {
-				//this.fixed = this.fixed.filter(h => h != hex);
 				hex.frozen = false;
-				//hex.fixed = false;
-				this.game.catalog.getCounter('Freezes').count++;
+                this.clear();
+                this.fall();
 			}
-            this.clear();
-            this.fall();
 		}
 	}
 
@@ -402,12 +404,18 @@ class HexGrid extends MouseListener {
 
 	clear() {
 		const toClear = this.getThreeInARow();
+        if (toClear.length >= 4) {
+            get(this.game.catalog, 'counters', 'Freezes').count++;
+            this.game.notify('Freezes +1');
+        }
+        if (toClear.length >= 6) {
+            get(this.game.catalog, 'counters', 'Blasts').count++;
+            this.game.notify('Blasts +1');
+        }
 		if (toClear.length > 0) {
 			toClear.forEach(hex => {
 				this.clearSingle(hex)
 			});
-			this.polys = this.polys.filter(hex => toClear.indexOf(hex) == -1);
-			this.fixed = this.fixed.filter(hex => toClear.indexOf(hex) == -1);
 			this.game.sounds.play('clear', {keep: true});
 		}
 		this.game.catalog.update(this.polys);
@@ -427,6 +435,10 @@ class HexGrid extends MouseListener {
         this.polys.push(hole);
         this.animator.clear(hex);
         this.clearing.push(hex);
+        this.polys.splice(this.polys.indexOf(hex), 1);
+        this.fixed.splice(this.fixed.indexOf(hex), 1);
+		/*this.polys = this.polys.filter(hex => toClear.indexOf(hex) == -1);
+		this.fixed = this.fixed.filter(hex => toClear.indexOf(hex) == -1);*/
     }
 
 	draw(ctx) {
@@ -548,7 +560,7 @@ class HexGrid extends MouseListener {
 		}
 		// Reselect closest one to the cleared one
 		if (this.selected && this.selected.empty) {
-            const copy = [...this.polys].filter(p => !p.empty);
+            const copy = [...this.polys].filter(p => !p.empty && !p.cleared);
             copy.sort((a,b) => 
                 distance(a.center, this.selected.center) - 
                 distance(b.center, this.selected.center));
@@ -891,6 +903,7 @@ class HexGrid extends MouseListener {
 		}
 	}
 
+    // Probabilistic board and expanded board setup
 	// TODO sometimes it fails for 200 (maybe 300?)
 	initCleanBoard(k) {
 		let count = 0;
@@ -1146,9 +1159,9 @@ class HexGrid extends MouseListener {
 	}
 
 	pressButtons(evt) {
-        let scanPoly = null;
+        if (!this.game.pad || !this.game.padState.using) return;
 		if (this.polys.length > 0) {
-            if (!this.selected) 
+            if (!this.selected || this.selected.cleared) 
                 this.selected = this.polys.filter(p => !p.empty)[0] ?? this.polys[0];
             if (this.selected.empty) 
                 this.swapping = false;
@@ -1158,8 +1171,10 @@ class HexGrid extends MouseListener {
                     if (this.swapping) {    
                         if (this.adjacent(this.selected, scanPoly))                    
                             this.click(scanPoly.center);
-                    } else
+                    } else {
                         this.selected = scanPoly;
+                        this.game.sounds.play('move');
+                    }
                 }
 			}
             if (evt.LB && evt.RB) {

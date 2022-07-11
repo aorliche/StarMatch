@@ -1,5 +1,5 @@
 
-class ButtonState {
+class GamepadState {
 	constructor(game) {
 		this.game = game;
         this.ages = {};
@@ -12,6 +12,16 @@ class ButtonState {
         let pressed = false;
         this.game.pad.buttons.forEach(b => {
             if (b.pressed) pressed = true;
+        });
+        return pressed;
+    }
+    
+    anyButtonOrAxis() {
+        if (this.anyButton())
+            return true;
+        let pressed = false;
+        this.game.pad.axes.forEach(a => {
+            if (Math.abs(Math.round(a)) == 1) pressed = true;
         });
         return pressed;
     }
@@ -81,8 +91,10 @@ class Game extends MouseListener {
 		this.bg = new StarField(copyDim(this.dim));
 		this.sounds = new Sounds(this);
 		this.animator.start();
-		this.buttonState = new ButtonState(this);
+		this.padState = new GamepadState(this);
 		this.age = 0;
+        this.notifications = [];
+        this.sounds.playMusic('intro');
 	}
 
 	// All mouse actions
@@ -114,6 +126,15 @@ class Game extends MouseListener {
 		this.requestNextLevel();
 		this.sounds.playMusic('game');
 	}
+    
+    notify(text) {
+        const notice = new Notification(this, {text: text});
+        if (this.notifications.length > 0 && 
+            notice.params.pos.y - this.notifications.at(-1).params.pos.y < 25) {
+            notice.params.pos.y = this.notifications.at(-1).params.pos.y + 25;
+        }
+        this.notifications.push(notice);
+    }
 
 	pause() {
 		this.paused = true;		
@@ -124,11 +145,13 @@ class Game extends MouseListener {
 		this.ctx.fillStyle = '#000';
 		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
 		this.bg.draw(this.ctx);
+        // Intro and intro config
 		if (this.level == 0) {
             if (this.config.visible)
                 this.config.draw(this.ctx);
             else
                 this.title.draw(this.ctx);
+        // Menu or menu config
 		} else if (this.config.visible || this.menu.visible) {
 			this.ctx.save();
 			this.ctx.globalAlpha = 0.7;
@@ -139,9 +162,11 @@ class Game extends MouseListener {
                 this.config.draw(this.ctx);
 			else
                 this.menu.draw(this.ctx);
+        // Game
 		} else {
 			this.grid.draw(this.ctx);
 			this.catalog.draw(this.ctx);
+            this.notifications.forEach(n => n.draw(this.ctx));
 		}
 	}
 	
@@ -154,10 +179,10 @@ class Game extends MouseListener {
 		if (this.level == 1 || !this.catalog) {
 			this.catalog = new Catalog(this);
 			this.catalog.getButton('Menu').cb = () => this.showMenu();
+            this.catalog.getCounter('Freezes').count = 3;
 		}
 		this.animator.gridInfos = [];
 		this.catalog.getCounter('Level').count = this.level;
-        this.catalog.getCounter('Freezes').count = 3;
 		this.catalog.getButton('Unfreeze All').cb = () => this.grid.unfreeze();
 		this.catalog.getTimer('Tectonic Activity').setAndStart(parseInt(get(this.menu, 'sliders', 'Tectonic Activity').value));
 		this.grid = new HexGrid(this);
@@ -172,12 +197,18 @@ class Game extends MouseListener {
 	tick() {
 		this.age++;
         this.pad = null;
+        // Chrome generates new Gamepad objects every action
         for (const pad of navigator.getGamepads()) {
             if (pad) {
                 this.pad = pad;
                 break;
             }
         }
+        // Null click in grid turns off
+        if (this.pad && !this.padState.using && this.padState.anyButtonOrAxis()) {
+            this.padState.using = true;
+        }
+        // Game running
 		if (!this.paused) {
 			const timer = this.catalog.getTimer('Tectonic Activity');
 			if (timer && timer.active && timer.time < 5 && timer.time >= 0) {
@@ -187,27 +218,30 @@ class Game extends MouseListener {
 				this.sounds.stop('warning');
 			}
 			if (this.pad) {
-				const evt = this.buttonState.getEvents(this.age);
+				const evt = this.padState.getEvents(this.age);
 				this.grid.pressButtons(evt);
 			}
+        // Intro, menu, config, or animation
 		} else {
 			this.sounds.stop('warning');
 			if (this.pad) {
-				const evt = this.buttonState.getEvents(this.age);
+				const evt = this.padState.getEvents(this.age);
 				if (this.menu.visible) {
 					if (evt.Start) {
-						this.unpause();	
+						this.unpause();
 					}
                 } else if (this.config.visible) {
                     this.config.capture(this.pad);
 				} else if (this.level == 0) {
                     if (Object.keys(evt).length > 1) // always have axes key
                         this.newGame();
-                    else if (this.buttonState.anyButton()) 
+                    else if (this.title.enabled && this.padState.anyButton()) 
 						this.config.visible = true;
 				}
 			}
 		}
+        // Housekeeping
+        this.notifications.forEach(n => n.tick());
 		this.bg.tick();
 	}
 
@@ -241,31 +275,49 @@ class TitleScreen extends MouseListener {
 		super();
 		this.dim = dim;
 		this.game = game;
-		this.button = new Button('New Game', '#722', '#ddd', {x: this.dim.w/2-60, y: this.dim.h/2-20}, 
-			{w: 120, h: 40}, e => this.game.newGame());
+        this.enabled = false;
+        this.buttons = [
+            new Button('Click to Enable Sounds', '#722', '#ddd', {x: this.dim.w/2-90, y: this.dim.h/2},
+                {w: 180, h: 40}, e => {
+                    this.enabled = true;
+                    this.buttons[0].text = 'Sounds Enabled!';
+                    this.buttons[0].color = '#4a4';
+                    this.game.sounds.playMusic('intro');
+                }, 16), 
+            new Button('New Game', '#722', '#ddd', {x: this.dim.w/2-60, y: this.dim.h/2+50}, 
+                {w: 120, h: 40}, e => this.game.newGame(), 16)
+        ];
 	}
 
 	click(p) {
-		if (this.button.contains(p)) {
-			this.button.hovering = false;
-			this.button.cb();
-		}
+        const idx = this.enabled ? 1 : 0;
+        if (this.buttons[idx].contains(p)) {
+            this.buttons[idx].hovering = false;
+            this.buttons[idx].cb();
+        }
 	}
 
 	draw(ctx) {
-		/*ctx.fillStyle = '#003';
-		ctx.fillRect(0, this.dim.h/2-120, this.dim.w, 75);*/
-		drawText(ctx, 'Star Match', {x: this.dim.w/2, y: this.dim.h/2-80}, '#f00', 'Bold 36px Sans-Serif');
-		drawText(ctx, 'A geometry-based space adventure', {x: this.dim.w/2, y: this.dim.h/2-60}, '#f00', 'Bold 16px Sans-Serif');
-		this.button.draw(ctx);
+		drawText(ctx, 'DRAGON STAR', {x: this.dim.w/2, y: this.dim.h/2-80}, 
+            '#f00', 'Bold 36px "Anger Styles", Sans-Serif');
+		drawText(ctx, 'A geometry-based space adventure', {x: this.dim.w/2, y: this.dim.h/2-40}, 
+            '#f00', 'Bold 16px Bahnschrift, Sans-Serif');
+        this.buttons[0].draw(ctx);
+        if (this.enabled) {
+            this.buttons[1].draw(ctx);
+            drawText(ctx, 'Press Start', {x: this.dim.w/2, y: this.dim.h/2+130},
+                '#f00', 'Bold 16px Conthrax, Sans-Serif');
+        }
 	}
 	
 	mousemove(p) {
-		this.button.hovering = this.button.contains(p);
+        const idx = this.enabled ? 1 : 0;
+		this.buttons[idx].hovering = this.buttons[idx].contains(p);
 	}
 
 	mouseout(p) {
-		this.button.hovering = false;
+        const idx = this.enabled ? 1 : 0;
+		this.buttons[idx].hovering = false;
 	}
 }
 
@@ -289,8 +341,9 @@ class MenuScreen extends MouseListener {
 		this.sliders = [
 			new Slider('Tectonic Activity', 
 				{x: this.dim.w/2-10, y:284, rjust:true}, '#d22', 16,
-				{x: this.dim.w/2+10, y: 280}, {w: 80, h: 6}, '#d22', 
-				{x: this.dim.w/2+10+80+30, y: 287}, 20, ['10s', '12s', '15s', '20s', '25s', '\u221e'], 2,
+				{x: this.dim.w/2+10, y: 280}, {w: 128, h: 6}, '#d22', 
+				{x: this.dim.w/2+10+128+30, y: 287}, 20, 
+                    ['12s', '15s', '20s', '25s', '30s', '35s', '40s', '50s', '\u221e'], 6,
 				time => {
 					time = parseInt(time);
 					const timer = get(this.game.catalog, 'timers', 'Tectonic Activity');
@@ -301,14 +354,14 @@ class MenuScreen extends MouseListener {
 			new Slider('Sound Effects Volume', 
 				{x: this.dim.w/2-10, y:314, rjust:true}, '#d22', 16,
 				{x: this.dim.w/2+10, y:310}, {w: 128, h:6}, '#d22',
-				{x: this.dim.w/2+10+128+30, y:317}, 20, [0, 0.1, 0.2, 0.3, 0.5, 0.8, 1, 2, 4], 2,
+				{x: this.dim.w/2+10+128+30, y:317}, 20, [0, 0.02, 0.05, 0.1, 0.2, 0.5, 0.7, 1, 2], 5,
 				gain => {
 					this.game.sounds.updateGain();
 				}),
 			new Slider('Music Volume', 
 				{x: this.dim.w/2-10, y:344, rjust:true}, '#d22', 16,
 				{x: this.dim.w/2+10, y:340}, {w: 128, h:6}, '#d22',
-				{x: this.dim.w/2+10+128+30, y:347}, 20, [0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1], 8,
+				{x: this.dim.w/2+10+128+30, y:347}, 20, [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2], 4,
 				gain => {
 					this.game.sounds.updateGain();
 				}),
@@ -382,6 +435,7 @@ class PadConfigScreen extends MouseListener {
                     }
                 }),
 		];
+        this.ts = null;
     }
     
     capture(pad) {
@@ -393,8 +447,10 @@ class PadConfigScreen extends MouseListener {
                 if (field.button || field.button === 0) this.map[field.button] = field.name;
                 else this.map[`${field.axis}:${field.value}`] = field.name;
                 this.fieldIdx++;
+                if (this.fieldIdx == this.fields.length)
+                    this.ts = pad.timestamp;
             }
-        } else {
+        } else if (pad.timestamp - 300 > this.ts) {
             let pressed = false;
             pad.buttons.forEach(b => {
                 if (b.pressed) pressed = true;
@@ -501,7 +557,7 @@ class PadButtonField {
             textColor = '#722';
             text = this.params.text + " (Press)";
         } else if (this.button || this.button === 0 || this.axis || this.axis === 0) {
-            ctx.fillStyle = '#4d4';
+            ctx.fillStyle = '#4a4';
             textColor = '#ddd';
             text = this.params.text;
             if (this.button || this.button === 0) {

@@ -1,3 +1,12 @@
+@import url('http://fonts.cdnfonts.com/css/anger-styles');
+@import url('http://fonts.cdnfonts.com/css/conthrax');
+@import url('http://fonts.cdnfonts.com/css/bahnschrift');
+
+body {
+    background-color: #000;
+    color: #fff;
+}
+
 label {
 	display: inline-block;
 	width: 120px;

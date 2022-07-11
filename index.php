@@ -38,8 +38,10 @@
 <link rel='stylesheet' href='style/game.css?nocache=<?= uniqid(); ?>'>
 </head>
 <body>
-<canvas style='float: left;' id='game' width='500' height='600'></canvas>
-<div style='float: left; margin-left: 20px;'>
+<div style='text-align: center;'>
+<canvas style='margin: 0 auto;' id='game' width='500' height='600'></canvas>
+</div>
+<div style='float: left; margin-left: 20px; display: none;'>
 	<p>Score: <span id='score'>0</span></p>
 	<select id='type' name='type'>
 		<option value='hex'>Hexagons</option>
@@ -102,7 +104,8 @@
 	<br>
 	<button id='playLevels'>Play Levels</button>
 </div>
-<div style='float: left; margin-left: 20px;'>
+<!--<div style='float: left; margin-left: 20px;'>-->
+<div>
 	<p><strong>Sounds</strong></p>
 <?php
 	foreach ($sounds as $sound => $default) {
@@ -126,7 +129,7 @@
 	}
 ?>
 	<p><Strong>Gamepad Instructions</strong></p>
-	<p>Arrows: move, B: toggle move selected, A: freeze/unfreeze, Start: menu and new game (title screen).</p>
+	<p>Arrows: move, A: toggle move selected, B: freeze/unfreeze, X: Blast, Y: unfreeze all, LB/RB: favor side on hex board, LB+RB tectonic activity now!, Start: menu and new game (title screen).</p>
 	<p>No gamepad controls in menu yet.</p>
 </div>
 </body>
