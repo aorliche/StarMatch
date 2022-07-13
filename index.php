@@ -26,15 +26,21 @@
 	const sounds = <?= array_to_js_object($sounds) ?>;
 	const music = <?= array_to_js_object($music) ?>;
 </script>
-<script src='script/interface.js?nocache=<?= uniqid(); ?>'></script>
-<script src='script/audio.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/lib/pSBC.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/controls.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/mouse.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/sounds.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/game.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/functions.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/effects.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/polys.js?nochache=<?= uniqid(); ?>'></script>
 <script src='script/grid.js?nocache=<?= uniqid(); ?>'></script>
-<script src='script/color.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/shapes.js?nocache=<?= uniqid(); ?>'></script>
-<script src='script/animation.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/animator.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/screens.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/gamepad.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/background.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/main.js?nocache=<?= uniqid(); ?>'></script>
 <link rel='stylesheet' href='style/game.css?nocache=<?= uniqid(); ?>'>
 </head>
 <body>

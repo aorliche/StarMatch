@@ -1,272 +1,195 @@
-const types = ['star', 'sun', 'planet', 'moon', 'atom', 'galaxy'];
-const typeColors = ['#1a1a39', '#333200', '#3e151e', '#0a2e25', '#3a1b35', '#01263f'];
-const images = [];
-
-let game;
-let deferred = {game: null};
-
-window.addEventListener('load', e => {
-	const score = document.querySelector('#score');
-	const type = document.querySelector('#type');
-	const button = document.querySelector('#remake');
-	const layersSlider = document.querySelector('#layers');
-	const layersSpan = document.querySelector('#layersSpan');
-	const sizeSlider = document.querySelector('#size');
-	const sizeSpan = document.querySelector('#sizeSpan');
-	const angleSlider = document.querySelector('#angle');
-	const angleSpan = document.querySelector('#angleSpan');
-	const difficultySlider = document.querySelector('#difficulty');
-	const difficultySpan = document.querySelector('#difficultySpan');
-	const chainsBox = document.querySelector('#chains');
-	const playButton = document.querySelector('#play');
-	const squareLevel = document.querySelector('#squareLevel');
-	const triLevel = document.querySelector('#triLevel');
-	const hexLevel = document.querySelector('#hexLevel');
-	const swapTileSound = document.querySelector('#swapTileSound');
-	const swapTileSoundSpan = document.querySelector('#swapTileSoundSpan');
-	const canvas = document.querySelector('#game');
-	const ctx = canvas.getContext('2d');
-	//let circles = [];
-	
-	function setParams() {
-		const params = {
-			'ptype': type.options[type.selectedIndex].value,
-			'size': parseInt(size.value),
-			'layers': parseInt(layers.value),
-			'angle': parseInt(angleSlider.value)*Math.PI/180
-		};
-		game.displayChains = chainsBox.checked;
-		game.params = params;
+class Game extends MouseListener {
+	constructor(canvas, updatePage) {
+		super();
+		this.level = 0;
+		this.canvas = canvas;
+		this.dim = {w: canvas.width, h: canvas.height};
+		this.ctx = canvas.getContext('2d');
+		this.title = new TitleScreen(copyDim(this.dim), this);
+		this.menu = new MenuScreen(copyDim(this.dim), this);
+        this.config = new PadConfigScreen(copyDim(this.dim), this);
+        this.main = new MainScreen(this);
+		this.grid = null;
+		this.animator = new Animator(this);
+		this.paused = true;
+		this.updatePage = updatePage;
+		this.bg = new StarField(copyDim(this.dim));
+		this.sounds = new Sounds(this);
+		this.animator.start();
+		this.padState = new GamepadState(this);
+		this.age = 0;
+        this.notifications = [];
+        this.sounds.playMusic('intro');
 	}
 
-	layersSlider.addEventListener('input', e => {
-		layersSpan.innerText = layersSlider.value;
-	});
-
-	sizeSlider.addEventListener('input', e => {
-		sizeSpan.innerText = sizeSlider.value;
-	});
-	
-	angleSlider.addEventListener('input', e => {
-		angleSpan.innerText = angleSlider.value;
-	});
-	
-	difficultySlider.addEventListener('input', e => {
-		difficultySpan.innerText = difficultySlider.value;
-	});
-
-	button.addEventListener('click', e => {
-		game.startLevel(1);
-	});
-
-	playButton.addEventListener('click', e => {
-		/*e.preventDefault();
-		if (playButton.innerText == 'Play') {
-			initLoops();
-			playButton.innerText = 'Stop';
-		} else if (playButton.innerText == 'Stop') {
-			if (loop) clearInterval(loop);
-			if (win) clearInterval(win);
-			playButton.innerText = 'Play';
-		} else if (playButton.innerText == 'New Game') {
-			init();
-			initLoops(true);
-			playButton.innerText = 'Stop';
-		}*/
-	});
-
-	chainsBox.addEventListener('change', e => {
-		game.displayChains = chainsBox.checked;
-		//game.repaint();
-	});
-
-	function setValues(layers, size, angle) {
-		layersSlider.value = layers;
-		layersSpan.innerText = layers;
-		sizeSlider.value = size;
-		sizeSpan.innerText = size;
-		angleSlider.value = angle
-		angleSpan.innerText = angle;
+	// All mouse actions
+	action(type, p) {
+		if (this.level == 0) {
+            if (this.config.visible) 
+                this.config[type](p);
+            else
+                this.title[type](p);
+        } else if (this.config.visible) {
+            this.config[type](p);
+		} else if (this.menu.visible) {
+			this.menu[type](p);
+		} else {
+			this.main[type](p);
+			this.grid[type](p);
+		}
 	}
 
-	squareLevel.addEventListener('change', e => {
-		const lvl = parseInt(e.target.value);
-		if (!lvl) return;
-		triLevel.selectedIndex = 0;
-		hexLevel.selectedIndex = 0;
-		if (lvl == 1) setValues(3, 60, 0);
-		if (lvl == 2) setValues(4, 60, 0);
-		if (lvl == 3) setValues(5, 60, 0);
-		type.selectedIndex = 2;
-		if (game) {
-			setParams();
-			game.startLevel((lvl-1)*3+1);
-		}
-	});
-	
-	triLevel.addEventListener('change', e => {
-		const lvl = parseInt(e.target.value);
-		if (!lvl) return;
-		squareLevel.selectedIndex = 0;
-		hexLevel.selectedIndex = 0;
-		if (lvl == 1) setValues(2, 75, 0);
-		if (lvl == 2) setValues(3, 75, 0);
-		if (lvl == 3) setValues(4, 75, 0);
-		type.selectedIndex = 1;
-		if (game) {
-			setParams();
-			game.startLevel((lvl-1)*3+3);
-		}
-	});
-	
-	hexLevel.addEventListener('change', e => {
-		const lvl = parseInt(e.target.value);
-		if (!lvl) return;
-		squareLevel.selectedIndex = 0;
-		triLevel.selectedIndex = 0;
-		if (lvl == 1) setValues(4, 40, 30);
-		if (lvl == 2) setValues(5, 40, 30);
-		if (lvl == 3) setValues(6, 40, 30);
-		type.selectedIndex = 0;
-		if (game) {
-			setParams();
-			game.startLevel((lvl-1)*3+2);
-		}
-	});
+	click(p) {this.action('click', p);}
+	mousedown(p) {this.action('mousedown', p);}
+	mousemove(p) {this.action('mousemove', p);}
+	mouseup(p) {this.action('mouseup', p);}
+	mouseout(p) {this.action('mouseout', p);}
+	rightClick(p) {this.action('rightClick', p);}
 
-	type.addEventListener('change', e => {
-		playButton.innerText = 'Play';
-		if (e.target.value == 'hex') {
-			setValues(5, 40, 30);
-		} else if (e.target.value == 'tri') {
-			setValues(2, 65, 0);
-		} else if (e.target.value == 'square') {
-			setValues(3, 45, 0);
-		}
-		if (game) {
-			setParams();
-			game.startLevel(1);
-		}
-	});
+	newGame() {
+		this.level = 0;
+		this.requestNextLevel();
+		this.sounds.playMusic('game');
+	}
+    
+    notify(text) {
+        const notice = new Notification(this, {text: text});
+        if (this.notifications.length > 0 && 
+            notice.params.pos.y - this.notifications.at(-1).params.pos.y < 25) {
+            notice.params.pos.y = this.notifications.at(-1).params.pos.y + 25;
+        }
+        this.notifications.push(notice);
+    }
 
-	// Gamepad
-	window.addEventListener("gamepadconnected", e => {
-        function addPad() {
-            if (!deferred.game) setTimeout(addPad, 100);
-            else {
-                deferred.game.pad = e.gamepad;
-                console.log(game.pad);
+	pause() {
+		this.paused = true;		
+		this.main.getTimer('Tectonic Activity').pause();
+	}
+
+	repaint() {
+		this.ctx.fillStyle = '#000';
+		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+		this.bg.draw(this.ctx);
+        // Intro and intro config
+		if (this.level == 0) {
+            if (this.config.visible)
+                this.config.draw(this.ctx);
+            else
+                this.title.draw(this.ctx);
+        // Menu or menu config
+		} else if (this.config.visible || this.menu.visible) {
+			this.ctx.save();
+			this.ctx.globalAlpha = 0.7;
+			this.grid.draw(this.ctx);
+			this.main.draw(this.ctx);
+			this.ctx.restore();
+            if (this.config.visible)
+                this.config.draw(this.ctx);
+			else
+                this.menu.draw(this.ctx);
+        // Game
+		} else {
+			this.grid.draw(this.ctx);
+			this.main.draw(this.ctx);
+            this.notifications.forEach(n => n.draw(this.ctx));
+		}
+	}
+	
+	requestNextLevel() {
+		this.updatePage();
+	}
+
+	startLevel(level) {
+		this.level = level;
+		if (this.level == 1) {
+			this.main.getButton('Menu').cb = () => this.showMenu();
+            this.main.getCounter('Freezes').count = 3;
+		}
+		this.animator.gridInfos = [];
+		this.main.getCounter('Level').count = this.level;
+		this.main.getButton('Unfreeze All').cb = () => this.grid.unfreeze();
+		this.main.getTimer('Tectonic Activity').setAndStart(parseInt(get(this.menu, 'sliders', 'Tectonic Activity').value));
+		this.grid = new HexGrid(this);
+		this.unpause();
+	}
+
+	showMenu() {
+		this.pause();
+		this.menu.visible = true;
+	}
+
+	tick() {
+		this.age++;
+        this.pad = null;
+        // Chrome generates new Gamepad objects every action
+        for (const pad of navigator.getGamepads()) {
+            if (pad) {
+                this.pad = pad;
+                break;
             }
         }
-        setTimeout(addPad, 100);
-	});
-
-	window.addEventListener("gamepaddisconnected", e => {
-		if (game) {
-            game.pad = null;
-            console.log(game.pad);
+        // Null click in grid turns off
+        if (this.pad && !this.padState.using && this.padState.anyButtonOrAxis()) {
+            this.padState.using = true;
         }
-	});	
-
-	function updatePage() {
-		const subLvl = Math.floor(game.level/3);
-		const select = [squareLevel, hexLevel, triLevel][game.level%3];
-		select.selectedIndex = subLvl+1;
-		select.dispatchEvent(new Event('change'));
-	}
-
-	// Load images
-	let numLoaded = 0;
-	function loadFn() {
-		if (++numLoaded == 6) {
-			game = new Game(canvas, updatePage);
-            deferred.game = game;
-			setParams();
-			//game.repaint();
-			initSounds();
-		}
-	}
-
-	types.map(t => {
-		images[t] = new Image;
-		images[t].addEventListener('load', loadFn);
-		images[t].src = `Images/${t}.png`;
-	});
-
-	triLevel.selectedIndex = 1;
-	triLevel.dispatchEvent(new Event('change'));
-
-	const baseUrl = new URL(window.location.href);
-
-	function initSounds() {
-		for (const name in {...sounds, ...music}) {
-			const input = document.querySelector(`#${name}Sound`);
-			const span = document.querySelector(`#${name}SoundSpan`);
-			let defUrl = null;
-			// Load defaults
-			if (name in sounds && sounds[name]) { 
-				defUrl = new URL(`${window.location.pathname}Sounds/${sounds[name]}`, baseUrl);
-				game.sounds.load(name, defUrl);
-			} else if (name in music && music[name]) {
-				defUrl = new URL(`${window.location.pathname}Sounds/${music[name]}`, baseUrl);
-				game.sounds.loadMusic(name, defUrl);
+        // Game running
+		if (!this.paused) {
+			const timer = this.catalog.getTimer('Tectonic Activity');
+			if (timer && timer.active && timer.time < 5 && timer.time >= 0) {
+ 				if (!this.sounds.playing('warning')) 
+					this.sounds.play('warning');
+			} else {
+				this.sounds.stop('warning');
 			}
-			// Play
-			const play = document.createElement('button');
-			play.innerText = 'Play';
-			play.addEventListener('click', ee => {
-				if (name in sounds) game.sounds.play(name, {nostop: true});
-				if (name in music) game.sounds.playMusic(name);
-			});
-			span.appendChild(play);
-			// Stop
-			if (name in music) {
-				const stop = document.createElement('button');
-				stop.innerText = 'Stop';
-				stop.addEventListener('click', ee => {
-					game.sounds.stopMusic(name);
-				});
-				span.appendChild(stop);
+			if (this.pad) {
+				const evt = this.padState.getEvents(this.age);
+				this.grid.pressButtons(evt);
 			}
-			// Reset
-			if (defUrl) {
-				const defText = document.createTextNode(`Default: ${defUrl.pathname}`);
-				const reset = document.createElement('button');
-				reset.innerText = 'Reset'; 
-				reset.addEventListener('click', ee => {
-					if (name in sounds) game.sounds.load(name, defUrl);
-					if (name in music) game.sounds.loadMusic(name, defUrl);
-				});
-				span.appendChild(reset);
-				span.appendChild(defText);
-			} 
-			input.addEventListener('change', e => {
-				if (input.files[0]) {
-					const url = URL.createObjectURL(input.files[0]);
-					if (name in sounds) game.sounds.load(name, url, true);
-					if (name in music) game.sounds.loadMusic(name, url);
+        // Intro, menu, config, or animation
+		} else {
+			this.sounds.stop('warning');
+			if (this.pad) {
+				const evt = this.padState.getEvents(this.age);
+				if (this.menu.visible) {
+					if (evt.Start) {
+						this.unpause();
+					}
+                } else if (this.config.visible) {
+                    this.config.capture(this.pad);
+				} else if (this.level == 0) {
+                    if (Object.keys(evt).length > 1) // always have axes key
+                        this.newGame();
+                    else if (this.title.enabled && this.padState.anyButton()) 
+						this.config.visible = true;
 				}
-			});
+			}
 		}
+        // Housekeeping
+        this.notifications.forEach(n => n.tick());
+		this.bg.tick();
 	}
 
-	['click', 'mousemove', 'mouseout', 'mousedown', 'mouseup'].forEach(type => {
-		canvas.addEventListener(type, e => {
-			if (game) {
-				const p = getCursorPosition(canvas, e);
-				game[type](p);
-				//game.repaint();
-			}
-		});
-	});
+	unpause() {
+		this.menu.visible = false;
+		this.paused = false;
+		this.catalog.getTimer('Tectonic Activity').unpause();
+		this.animator.start();
+	}
 
-	canvas.addEventListener('contextmenu', e => {
-		e.preventDefault();
-		const p = getCursorPosition(canvas, e);
-		if (game) {
-			game.rightClick(p);
-			//game.repaint();	
-			return false;
+	winLevel() {
+		this.grid.selected = null;
+		this.animator.gridInfos = [];
+		this.catalog.getTimer('Tectonic Activity').start();
+		this.sounds.stopAll();
+		this.sounds.play('winlevel');
+		if (this.level < 9) {
+			setTimeout(e => this.requestNextLevel(), 500);
+		} else {
+			this.catalog = null;
+			this.animator.infos = [];
+			this.paused = true;
+			this.level = 0;
+			//this.repaint();
 		}
-	});
-});
+	}
+}

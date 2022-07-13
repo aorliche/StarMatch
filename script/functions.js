@@ -86,14 +86,6 @@ function indexOfArrayElts(arr, item) {
 	return -1;
 }
 
-function copyPoint(p) {
-	return {x: p.x, y: p.y};
-}
-
-function copyDim(dim) {
-	return {w: dim.w, h: dim.h};
-}
-
 function shuffleArray(arr) {
 	for (let i=0; i<arr.length; i++) {
 		const j = Math.floor(Math.random()*arr.length);
@@ -191,4 +183,45 @@ function argmin(arr) {
 		if (arr[i] < arr[min]) min = i;
 	}
 	return min;
+}
+
+function drawCircle(ctx, c, r, color) {
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.arc(c.x, c.y, r, 0, 2*Math.PI);
+	ctx.closePath();
+	ctx.fill();
+}
+
+function drawLine(ctx, from, to, color, width) {
+	ctx.strokeStyle = color;
+	ctx.lineWidth = width;
+	ctx.beginPath();
+	ctx.moveTo(from.x, from.y);
+	ctx.lineTo(to.x, to.y);
+	ctx.stroke();
+}
+
+function drawText(ctx, text, p, color, font, stroke) {
+	ctx.save();
+	if (font) ctx.font = font;
+	const tm = ctx.measureText(text);
+	ctx.fillStyle = color;
+	if (p.ljust) 
+		ctx.fillText(text, p.x, p.y);
+	else if (p.rjust)
+		ctx.fillText(text, p.x-tm.width, p.y);
+	else
+		ctx.fillText(text, p.x-tm.width/2, p.y);
+	if (stroke) {
+		ctx.strokeStyle = stroke;
+		ctx.lineWidth = 1;
+		ctx.strokeText(text, p.x-tm.width/2, p.y);
+	}
+	ctx.restore();
+	return tm;
+}
+
+function addPoints(a, b) {
+    return {x: a.x+b.x, y: a.y+b.y};
 }

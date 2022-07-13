@@ -1,323 +1,99 @@
 
-class GamepadState {
+class MainScreen extends MouseListener {
 	constructor(game) {
-		this.game = game;
-        this.ages = {};
-        this.interval = {};
-        this.intervalDefault = 6;
-        this.intervalFirst = 12;
-	}
-    
-    anyButton() {
-        let pressed = false;
-        this.game.pad.buttons.forEach(b => {
-            if (b.pressed) pressed = true;
-        });
-        return pressed;
-    }
-    
-    anyButtonOrAxis() {
-        if (this.anyButton())
-            return true;
-        let pressed = false;
-        this.game.pad.axes.forEach(a => {
-            if (Math.abs(Math.round(a)) == 1) pressed = true;
-        });
-        return pressed;
-    }
-    
-    arrowEvent(evt, key, name, age) {
-        if (!this.ages[key] || age-this.ages[key] >= this.interval[key]) {
-            const diff = this.ages[key] ? age-this.ages[key] : this.intervalFirst+1;
-            if (diff > this.intervalFirst)
-                this.interval[key] = this.intervalFirst;
-            else if (diff == this.intervalFirst)
-                this.interval[key] = this.intervalDefault;
-            switch (name) {
-                case 'LA': evt.axes[0] = -1; break;
-                case 'RA': evt.axes[0] = 1; break;
-                case 'UA': evt.axes[1] = -1; break;
-                case 'DA': evt.axes[1] = 1; break;
-            }
-            this.ages[key] = age;
-        }
-    }
-
-	getEvents(age) {
-		const evt = {axes: [0,0]};
-        // Buttons
-        for (let i=0; i<this.game.pad.buttons.length; i++) {
-            if (i in this.game.config.map) {
-                const name = this.game.config.map[i];
-                // Continuous
-                if (['LA', 'RA', 'UA', 'DA'].indexOf(name) != -1 && this.game.pad.buttons[i].pressed) {
-                    this.arrowEvent(evt, i, name, age);
-                // Edge
-                } else if (['Start', 'B', 'A', 'LB', 'RB', 'X', 'Y'].indexOf(name) != -1) {
-                    if (this.game.pad.buttons[i].pressed != this.ages[i]) {
-                        this.ages[i] = this.game.pad.buttons[i].pressed;
-                        evt[name] = this.ages[i];
-                    }
-                }
-            }                
-        }
-        // Axes
-        for (let i=0; i<this.game.pad.axes.length; i++) {
-            const value = Math.round(this.game.pad.axes[i]);
-            const key = `${i}:${value}`;
-            if (Object.keys(this.game.config.map).indexOf(key) != -1) {
-                const name = this.game.config.map[key];
-                this.arrowEvent(evt, key, name, age);
-            }
-        }
-		return evt;
-	}
-}
-
-class Game extends MouseListener {
-	constructor(canvas, updatePage) {
 		super();
-		this.level = 0;
-		this.canvas = canvas;
-		this.dim = {w: canvas.width, h: canvas.height};
-		this.ctx = canvas.getContext('2d');
-		this.title = new TitleScreen(copyDim(this.dim), this);
-		this.menu = new MenuScreen(copyDim(this.dim), this);
-        this.config = new PadConfigScreen(copyDim(this.dim), this);
-		this.grid = null;
-		this.animator = new Animator(this);
-		this.paused = true;
-		this.updatePage = updatePage;
-		this.bg = new StarField(copyDim(this.dim));
-		this.sounds = new Sounds(this);
-		this.animator.start();
-		this.padState = new GamepadState(this);
-		this.age = 0;
-        this.notifications = [];
-        this.sounds.playMusic('intro');
-	}
-
-	// All mouse actions
-	action(type, p) {
-		if (this.level == 0) {
-            if (this.config.visible) 
-                this.config[type](p);
-            else
-                this.title[type](p);
-        } else if (this.config.visible) {
-            this.config[type](p);
-		} else if (this.menu.visible) {
-			this.menu[type](p);
-		} else {
-			this.catalog[type](p);
-			this.grid[type](p);
-		}
-	}
-
-	click(p) {this.action('click', p);}
-	mousedown(p) {this.action('mousedown', p);}
-	mousemove(p) {this.action('mousemove', p);}
-	mouseup(p) {this.action('mouseup', p);}
-	mouseout(p) {this.action('mouseout', p);}
-	rightClick(p) {this.action('rightClick', p);}
-
-	newGame() {
-		this.level = 0;
-		this.requestNextLevel();
-		this.sounds.playMusic('game');
-	}
-    
-    notify(text) {
-        const notice = new Notification(this, {text: text});
-        if (this.notifications.length > 0 && 
-            notice.params.pos.y - this.notifications.at(-1).params.pos.y < 25) {
-            notice.params.pos.y = this.notifications.at(-1).params.pos.y + 25;
-        }
-        this.notifications.push(notice);
-    }
-
-	pause() {
-		this.paused = true;		
-		this.catalog.getTimer('Tectonic Activity').pause();
-	}
-
-	repaint() {
-		this.ctx.fillStyle = '#000';
-		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-		this.bg.draw(this.ctx);
-        // Intro and intro config
-		if (this.level == 0) {
-            if (this.config.visible)
-                this.config.draw(this.ctx);
-            else
-                this.title.draw(this.ctx);
-        // Menu or menu config
-		} else if (this.config.visible || this.menu.visible) {
-			this.ctx.save();
-			this.ctx.globalAlpha = 0.7;
-			this.grid.draw(this.ctx);
-			this.catalog.draw(this.ctx);
-			this.ctx.restore();
-            if (this.config.visible)
-                this.config.draw(this.ctx);
-			else
-                this.menu.draw(this.ctx);
-        // Game
-		} else {
-			this.grid.draw(this.ctx);
-			this.catalog.draw(this.ctx);
-            this.notifications.forEach(n => n.draw(this.ctx));
-		}
-	}
-	
-	requestNextLevel() {
-		this.updatePage();
-	}
-
-	startLevel(level) {
-		this.level = level;
-		if (this.level == 1 || !this.catalog) {
-			this.catalog = new Catalog(this);
-			this.catalog.getButton('Menu').cb = () => this.showMenu();
-            this.catalog.getCounter('Freezes').count = 3;
-		}
-		this.animator.gridInfos = [];
-		this.catalog.getCounter('Level').count = this.level;
-		this.catalog.getButton('Unfreeze All').cb = () => this.grid.unfreeze();
-		this.catalog.getTimer('Tectonic Activity').setAndStart(parseInt(get(this.menu, 'sliders', 'Tectonic Activity').value));
-		this.grid = new HexGrid(this);
-		this.unpause();
-	}
-
-	showMenu() {
-		this.pause();
-		this.menu.visible = true;
-	}
-
-	tick() {
-		this.age++;
-        this.pad = null;
-        // Chrome generates new Gamepad objects every action
-        for (const pad of navigator.getGamepads()) {
-            if (pad) {
-                this.pad = pad;
-                break;
-            }
-        }
-        // Null click in grid turns off
-        if (this.pad && !this.padState.using && this.padState.anyButtonOrAxis()) {
-            this.padState.using = true;
-        }
-        // Game running
-		if (!this.paused) {
-			const timer = this.catalog.getTimer('Tectonic Activity');
-			if (timer && timer.active && timer.time < 5 && timer.time >= 0) {
- 				if (!this.sounds.playing('warning')) 
-					this.sounds.play('warning');
-			} else {
-				this.sounds.stop('warning');
-			}
-			if (this.pad) {
-				const evt = this.padState.getEvents(this.age);
-				this.grid.pressButtons(evt);
-			}
-        // Intro, menu, config, or animation
-		} else {
-			this.sounds.stop('warning');
-			if (this.pad) {
-				const evt = this.padState.getEvents(this.age);
-				if (this.menu.visible) {
-					if (evt.Start) {
-						this.unpause();
-					}
-                } else if (this.config.visible) {
-                    this.config.capture(this.pad);
-				} else if (this.level == 0) {
-                    if (Object.keys(evt).length > 1) // always have axes key
-                        this.newGame();
-                    else if (this.title.enabled && this.padState.anyButton()) 
-						this.config.visible = true;
-				}
-			}
-		}
-        // Housekeeping
-        this.notifications.forEach(n => n.tick());
-		this.bg.tick();
-	}
-
-	unpause() {
-		this.menu.visible = false;
-		this.paused = false;
-		this.catalog.getTimer('Tectonic Activity').unpause();
-		this.animator.start();
-	}
-
-	winLevel() {
-		this.grid.selected = null;
-		this.animator.gridInfos = [];
-		this.catalog.getTimer('Tectonic Activity').start();
-		this.sounds.stopAll();
-		this.sounds.play('winlevel');
-		if (this.level < 9) {
-			setTimeout(e => this.requestNextLevel(), 500);
-		} else {
-			this.catalog = null;
-			this.animator.infos = [];
-			this.paused = true;
-			this.level = 0;
-			//this.repaint();
-		}
-	}
-}
-
-class TitleScreen extends MouseListener {
-	constructor(dim, game) {
-		super();
-		this.dim = dim;
 		this.game = game;
-        this.enabled = false;
-        this.buttons = [
-            new Button('Click to Enable Sounds', '#722', '#ddd', {x: this.dim.w/2-90, y: this.dim.h/2},
-                {w: 180, h: 40}, e => {
-                    this.enabled = true;
-                    this.buttons[0].text = 'Sounds Enabled!';
-                    this.buttons[0].color = '#4a4';
-                    this.game.sounds.playMusic('intro');
-                }, 16), 
-            new Button('New Game', '#722', '#ddd', {x: this.dim.w/2-60, y: this.dim.h/2+50}, 
-                {w: 120, h: 40}, e => this.game.newGame(), 16)
-        ];
+		this.items = [];
+		for (let i=0; i<types.length; i++) {
+			this.items.push(new CatalogItem(types[i], {x: 160+(20+10)*i, y: 10}, {w: 30, h:50}));
+		}
+		this.counters = [
+			new Counter('Level', '#ddd', {x:460, y:25, rjust:true}, {x:465, y:25, ljust:true}, 18),
+			new Counter('Moves', '#ddd', {x:460, y:50, rjust:true}, {x:465, y:50, ljust:true}, 12),
+			new Counter('Freezes', '#ddd', {x:460, y:65, rjust:true}, {x:465, y:65, ljust:true}, 12, 3),
+            new Counter('Blasts', '#ddd', {x:460, y:80, rjust:true}, {x:465, y:80, ljust:true}, 12, 1)
+		];
+		this.buttons = [
+			new Button('Menu', '#611', '#ddd', {x: 15, y: 15}, {w: 90, h: 20}, e => this.game.showMenu(), 12),
+			new Button('Unfreeze All', '#116', '#ddd', {x: 15, y: 45}, {w: 90, h: 20}, e => this.game.grid.unfreezeAll(), 12)
+		];
+		this.timers = [
+			new Timer('Tectonic Activity', '#ddd', {x:240, y:80}, 12, 20, 
+				timer => {this.game.grid.expandFromBelow()}, true)
+		];
 	}
 
 	click(p) {
-        const idx = this.enabled ? 1 : 0;
-        if (this.buttons[idx].contains(p)) {
-            this.buttons[idx].hovering = false;
-            this.buttons[idx].cb();
-        }
+		let found = false;
+		this.buttons.forEach(b => {
+			if (b.contains(p)) {
+				b.hovering = false;
+				b.click(p);
+				found = true;
+			}
+		});
+		return found;
 	}
 
 	draw(ctx) {
-		drawText(ctx, 'DRAGON STAR', {x: this.dim.w/2, y: this.dim.h/2-80}, 
-            '#f00', 'Bold 36px "Anger Styles", Sans-Serif');
-		drawText(ctx, 'A geometry-based space adventure', {x: this.dim.w/2, y: this.dim.h/2-40}, 
-            '#f00', 'Bold 16px Bahnschrift, Sans-Serif');
-        this.buttons[0].draw(ctx);
-        if (this.enabled) {
-            this.buttons[1].draw(ctx);
-            drawText(ctx, 'Press Start', {x: this.dim.w/2, y: this.dim.h/2+130},
-                '#f00', 'Bold 16px Conthrax, Sans-Serif');
-        }
+		this.items.forEach(item => item.draw(ctx));
+		this.buttons.forEach(item => item.draw(ctx));
+		this.counters.forEach(item => item.draw(ctx));
+		this.timers.forEach(item => item.draw(ctx));
 	}
 	
-	mousemove(p) {
-        const idx = this.enabled ? 1 : 0;
-		this.buttons[idx].hovering = this.buttons[idx].contains(p);
+	frame() {
+		this.items.forEach(item => item.frame());
 	}
 
-	mouseout(p) {
-        const idx = this.enabled ? 1 : 0;
-		this.buttons[idx].hovering = false;
+	get animating() {
+		let updating = false;
+		this.items.forEach(item => {
+			if (item.alpha > 0) {
+				updating = true;
+			}
+		});
+		this.timers.forEach(timer => {
+			if (timer.active) {
+				updating = true;
+			}
+		});
+		return updating;
+	}
+	
+	getButton(name) {
+		return this.buttons.filter(b => b.text == name)[0];
+	}
+
+	getCounter(name) {
+		return this.counters.filter(c => c.text == name)[0];
+	}
+
+	getTimer(name) {
+		return this.timers.filter(c => c.text == name)[0];
+	}
+
+	mousemove(p) {
+		this.buttons.forEach(b => {
+			b.hovering = b.contains(p);
+		});
+	}
+/*
+	score(hex) {
+		this.items.forEach(item => {
+			if (item.type == hex.type) {
+				item.update(1);
+			}
+		});
+	}*/
+
+	update(polys) {
+		this.items.forEach(item => item.count = 0);
+		polys.forEach(hex => {
+			if (!hex.empty) {
+				this.items[types.indexOf(hex.type)].count += 1;
+			}
+		});
 	}
 }
 
@@ -508,196 +284,60 @@ class PadConfigScreen extends MouseListener {
     }
 }
 
-class PadButtonField {
-    constructor(config, params) {
-        this.params = params;
-        this.config = config;
-    }
-    
-    capture(pad) {
-        for (let i=0; i<pad.buttons.length; i++) {
-            if (pad.buttons[i].pressed) {
-                try {
-                    let prior = this.config.fields[this.config.fieldIdx-1];
-                    if (prior.button == i) 
-                        continue;
-                } catch (e) {}
-                this.button = i;
-                return true;
-            }
-        }
-        for (let i=0; i<pad.axes.length; i++) {
-            if (i > 4) break;
-            if (Math.abs(pad.axes[i]) > 0.1) {
-                const value = Math.round(pad.axes[i]);
-                try {
-                    let prior = this.config.fields[this.config.fieldIdx-1];
-                    if (prior.axis == i && prior.value == value) 
-                        continue;
-                } catch (e) {}
-                this.axis = i;
-                this.value = value;
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    contains(p) {
-		return p.x > this.params.pos.x && p.x < this.params.pos.x+this.params.dim.w &&
-			p.y > this.params.pos.y && p.y < this.params.pos.y+this.params.dim.h;
+class TitleScreen extends MouseListener {
+	constructor(dim, game) {
+		super();
+		this.dim = dim;
+		this.game = game;
+        this.enabled = false;
+        this.buttons = [
+            new Button('Click to Enable Sounds', '#722', '#ddd', {x: this.dim.w/2-90, y: this.dim.h/2},
+                {w: 180, h: 40}, e => {
+                    this.enabled = true;
+                    this.buttons[0].text = 'Sounds Enabled!';
+                    this.buttons[0].color = '#4a4';
+                    this.game.sounds.playMusic('intro');
+                }, 16), 
+            new Button('New Game', '#722', '#ddd', {x: this.dim.w/2-60, y: this.dim.h/2+50}, 
+                {w: 120, h: 40}, e => this.game.newGame(), 16)
+        ];
 	}
-    
-    draw(ctx) {
-        let textColor, text;
-		ctx.strokeStyle = '#4a4a4a';
-		ctx.lineWidth = 3;
-        if (this.config.fields[this.config.fieldIdx] == this) {
-            ctx.fillStyle = '#ddd';
-            textColor = '#722';
-            text = this.params.text + " (Press)";
-        } else if (this.button || this.button === 0 || this.axis || this.axis === 0) {
-            ctx.fillStyle = '#4a4';
-            textColor = '#ddd';
-            text = this.params.text;
-            if (this.button || this.button === 0) {
-                text += ` (Bu${this.button})`;
-            } else {
-                text += ` (Ax${this.axis}:${this.value})`;
-            }
-        } else {
-            if (this.hovering) {
-                ctx.fillStyle = '#ddd';
-                textColor = '#722';
-            } else {
-                ctx.fillStyle = '#a55';
-                textColor = '#ddd';
-            }
-            text = this.params.text;
+
+	click(p) {
+        const idx = this.enabled ? 1 : 0;
+        if (this.buttons[idx].contains(p)) {
+            this.buttons[idx].hovering = false;
+            this.buttons[idx].cb();
         }
-		ctx.fillRect(this.params.pos.x, this.params.pos.y, this.params.dim.w, this.params.dim.h);
-		ctx.strokeRect(this.params.pos.x, this.params.pos.y, this.params.dim.w, this.params.dim.h);
-        drawText(ctx, text, 
-            {x: this.params.pos.x+this.params.dim.w/2, y: this.params.pos.y+this.params.dim.h/2+8-4}, 
-            textColor, '12px Sans-Serif');
-    }
-    
-    get name() {
-        if (this.params.name) return this.params.name;
-        else return this.params.text;
-    }
+	}
+
+	draw(ctx) {
+		drawText(ctx, 'DRAGON STAR', {x: this.dim.w/2, y: this.dim.h/2-80}, 
+            '#f00', 'Bold 36px "Anger Styles", Sans-Serif');
+		drawText(ctx, 'A geometry-based space adventure', {x: this.dim.w/2, y: this.dim.h/2-40}, 
+            '#f00', 'Bold 16px Bahnschrift, Sans-Serif');
+        this.buttons[0].draw(ctx);
+        if (this.enabled) {
+            this.buttons[1].draw(ctx);
+            drawText(ctx, 'Press Start', {x: this.dim.w/2, y: this.dim.h/2+130},
+                '#f00', 'Bold 16px Conthrax, Sans-Serif');
+        }
+	}
+	
+	mousemove(p) {
+        const idx = this.enabled ? 1 : 0;
+		this.buttons[idx].hovering = this.buttons[idx].contains(p);
+	}
+
+	mouseout(p) {
+        const idx = this.enabled ? 1 : 0;
+		this.buttons[idx].hovering = false;
+	}
 }
 
 class VictoryScreen extends MouseListener {
 	constructor() {
 		super();
 
-	}
-}
-
-class Slider {
-	constructor(text, centerLabel, labelColor, labelFontSize, left, dim, color, centerText, fontSize, ticks, pos, cb) {
-		this.text = text;
-		this.centerLabel = centerLabel;
-		this.labelColor = labelColor;
-		this.labelFontSize = labelFontSize;
-		this.labelFont = `Bold ${this.labelFontSize}px Sans-Serif`;
-		this.left = left;
-		this.dim = dim;
-		this.color = color;
-		this.centerText = centerText;
-		this.fontSize = fontSize ?? 12;
-		this.font = `Bold ${this.fontSize}px Sans-Serif`;
-		this.ticks = ticks;
-		const n = ticks.length-1;
-		this.tickLoc = [...this.ticks.keys()].map(i => ({x: left.x + i*(dim.w/n), y: left.y}));
-		this.pos = pos;
-		this.cb = cb;
-		this.selected = false;
-		this.hovering = false;
-	}
-
-	contains(p) {
-		return distance(p, this.tickLoc[this.pos]) < 8;
-	}
-
-	draw(ctx) {
-		drawText(ctx, this.text, this.centerLabel, this.labelColor, this.labelFont);
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = this.color;
-		ctx.fillStyle = '#ddd';
-		ctx.beginPath();
-		ctx.moveTo(this.left.x, this.left.y);
-		ctx.lineTo(this.left.x+this.dim.w, this.left.y);
-		ctx.closePath();
-		ctx.stroke();
-		ctx.lineWidth = 1;
-		for (let i=0; i<this.tickLoc.length; i++) {
-			ctx.beginPath();
-			ctx.moveTo(this.tickLoc[i].x, this.tickLoc[i].y - this.dim.h/2);
-			ctx.lineTo(this.tickLoc[i].x, this.tickLoc[i].y + this.dim.h/2);
-			ctx.closePath();
-			ctx.stroke();
-			if (this.pos == i) {
-				drawCircle(ctx, this.tickLoc[i], 6, '#d00');
-				if (this.selected || this.hovering) {
-					drawCircle(ctx, this.tickLoc[i], 4, '#ddd');
-				}
-			}
-		}
-		const txt = this.ticks[this.pos];
-		const font = (txt == '\u221e') ? `Bold ${Math.floor(1.5*this.fontSize)}px Sans-Serif` : this.font;
-		drawText(ctx, txt, this.centerText, this.color, font);
-	}
-
-	get value() {
-		return this.ticks[this.pos];
-	}
-
-	mousedown(p) {
-		if (this.contains(p)) {
-			this.selected = true;
-		}
-	}
-
-	mousemove(p) {
-		this.hovering = this.contains(p);
-		if (this.selected) {
-			const oldPos = this.pos;
-			this.pos = argmin(this.tickLoc.map(loc => distance(p, loc)));
-			if (this.pos != oldPos) this.cb(this.ticks[this.pos]);
-		}
-	}
-
-	mouseup() {
-		this.selected = false;
-	}
-
-	mouseout() {
-		this.hovering = false;
-		this.selected = false;
-	}
-}
-
-class StarField {
-	constructor(dim) {
-		this.dim = dim;
-		this.stars = [];
-		for (let i=0; i<200; i++) {
-			this.stars.push({x: randomInt(0, dim.w), y: randomInt(0, dim.h), age: randomInt(0, 300)});
-		}
-		this.age = 1;
-	}
-
-	draw(ctx) {
-		this.stars.forEach(s => {
-			const b = Math.abs(9-Math.floor(((this.age+s.age)%200)/10)).toString(16);
-			ctx.fillStyle = `#${b}${b}${b}`;
-			ctx.fillRect(s.x, s.y, 3, 3);
-		});
-	}
-
-	tick() {
-		this.age++;
 	}
 }
