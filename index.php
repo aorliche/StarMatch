@@ -35,7 +35,6 @@
 <script src='script/effects.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/polys.js?nochache=<?= uniqid(); ?>'></script>
 <script src='script/grid.js?nocache=<?= uniqid(); ?>'></script>
-<script src='script/shapes.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/animator.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/screens.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/gamepad.js?nocache=<?= uniqid(); ?>'></script>

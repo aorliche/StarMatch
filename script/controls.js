@@ -1,8 +1,58 @@
 
+// Control is the base class for all
+// Text is used by everything
+// These must be non-alphabetical
+
+class Control extends MouseListener {
+    constructor(params) {
+		super();
+        this.parent = params.parent;
+        this.pos = params.pos ? {...params.pos} : null;
+        this.dim = params.dim ? {...params.dim} : {w: 0, h: 0};
+        this.margin = params.margin ? {...params.margin} : {top: 0, right: 0, bottom: 0, left: 0};
+    }
+    
+    contains(p) {
+		return p.x > this.pos.x && p.x < this.pos.x+this.dim.w &&
+			p.y > this.pos.y && p.y < this.pos.y+this.dim.h;
+    }
+
+	draw(ctx) {}
+}
+
+class Text extends Control {
+	// ctx required for measuring text
+	constructor(params, ctx) {
+		super(params);
+		this.text = params.text;
+		this.color = params.color ?? 'red';
+		this.fontFamily = params.fontFamily ?? fontFamily3;
+		this.fontSize = params.fontSize ?? 16;
+		this.fontWeight = params.fontWeight ?? '';
+		this.ctx = ctx;
+		this.pack();
+	}
+
+	draw(ctx) {
+		const p = {x: this.pos.x, y: this.pos.y+this.ascent};
+		ctx.fillStyle = this.color;
+		ctx.fillText(this.text, p.x, p.y);
+	}
+
+	pack(pass) {
+		if (pass == 1) return;
+		const font = `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, Sans-Serif`;
+		const tm = this.ctx.measureText(this.text);
+		this.dim.w = tm.width;
+		this.ascent = tm.actualBoundingBoxAscent;
+		this.descent = tm.actualBoundingBoxDescent;
+		this.dim.h = this.ascent + this.descent;
+	}
+}
 
 class Astron extends Control {
 	constructor(params) {
-        super(null, params.pos, params.dim, params.margin);
+        super(params);
 		this.type = params.type;
 		this.count = 0;
 		this.alpha = 0;
@@ -35,66 +85,103 @@ class Astron extends Control {
 }
 
 class Box extends Control {
-    constructor(parent, pos, margin, align) {
-        super(parent, pos, null, margin);
-        this.controls = [];
-        this.align = align ?? 'center';
+    constructor(params) {
+        super(params);
+        this.children = [];
+        this.align = params.align ?? '';
     }
     
     add(control) {
-        this.controls.push(control);
+        this.children.push(control);
     }
-    
-    pack() {
+
+	draw(ctx, debug) {
+		this.children.forEach(c => c.draw(ctx, debug));
+		if (debug) {
+			ctx.lineWidth = 1;
+			ctx.strokeStyle = '#f00';
+			ctx.strokeRect(this.pos.x - this.margin.left, this.pos.y - this.margin.top, 
+				this.dim.w + this.margin.left + this.margin.right, 
+				this.dim.h + this.margin.top + this.margin.bottom);
+		}
+	}
+ 
+ 	// pass == 0: set dims of self and children
+	// pass == 1: set postion of children (parent sets your pos)
+    pack(pass) {
         let w,h;
+		if (pass === 0)
+			this.children.forEach(c => {
+				if (c.pack) c.pack(0);
+			});
         if (this instanceof HBox) {
-            h = this.margin.top + this.margin.bottom;
-            w = this.margin.left;
-            h += Math.max(this.controls.map(c => c.dim.h + c.margin.top + c.margin.bottom));
+			w = 0;
+            h = Math.max(...this.children.map(c => c.dim.h + c.margin.top + c.margin.bottom));
         } else {
-            h = this.margin.top;
-            w = this.margin.left + this.margin.right;
-            w += Math.max(this.controls.map(c => c.dim.w + c.margin.left + c.margin.right));
+            w = Math.max(...this.children.map(c => c.dim.w + c.margin.left + c.margin.right));
+			h = 0;
         }
-        this.controls.forEach(c => {
-            if (c.pack) c.pack();
-            if (this instanceof HBox) {
-                c.pos.x = this.pos.x + w;
-                c.pos.y = this.pos.y;
-                if (this.align == 'center') 
-                    c.pos.y += this.margin.top + h/2 - c.dim.h/2 - c.margin.top;
-                w += c.w + c.margin.left + c.margin.right;
-            } else {
-                c.pos.x = this.pos.x;
-                c.pos.y = this.pos.y + h;
-                if (this.align == 'center')
-                    c.pos.x += this.margin.left + w/2 - c.dim.w/2 - c.margin.left;
-                h += c.h + c.margin.top + c.margin.bottom;
-            }
+        this.children.forEach(c => {
+			if (this instanceof HBox) {
+				w += c.margin.left;
+				if (pass == 1) {
+					c.pos = {x: this.pos.x + w, y: this.pos.y};
+					if (this.align == 'center') 
+						c.pos.y += this.margin.top + h/2 - c.dim.h/2;
+					else 
+						c.pos.y += this.margin.top + c.margin.top;
+				}
+				w += c.dim.w + c.margin.right;
+			} else {
+				h += c.margin.top;
+				if (pass == 1) {
+					c.pos = {x: this.pos.x, y: this.pos.y + h};
+					if (this.align == 'center')
+						c.pos.x += this.margin.left + w/2 - c.dim.w/2;
+					else if (this.align == 'left' || this.align == '')
+						c.pos.x += this.margin.left + c.margin.left;
+				}
+				h += c.dim.h + c.margin.bottom;
+			}
+			if (pass == 1 && c.pack) c.pack(1);
         });
-        if (this instanceof HBox) w += this.margin.right;
-        else h += this.margin.bottom;
-        this.dim.w = w;
-        this.dim.h = h;
-        if (this.parent && this.parent.pack) 
-            this.parent.pack();
+		if (pass === 0 && (!this.dim.w || !this.dim.h)) {
+			this.dim.w = w;
+			this.dim.h = h;
+		}
     }
+
+	packAll() {
+		this.pack(0);
+		this.pack(1);
+	}
     
     remove(control) {
         this.controls.splice(this.controls.indexOf(control), 1);
     }
 }
 
+class HBox extends Box {
+    constructor(params) {
+        super(params);
+    }
+}
+
+class VBox extends Box {
+    constructor(params) {
+        super(params);
+    }
+}
+
 class Button extends Control {
-	constructor(params) {
-        super(null, params.pos, params.dim, params.margin);
-		this.text = params.text;
+	constructor(params, ctx) {
+        super(params);
+		this.text = new Text(params, ctx);
+		this.text.fontWeight == params.fontWeight ?? 'Bold';
 		this.color = params.color;
 		this.hoverColor = params.hoverColor;
 		this.cb = params.cb;
 		this.hovering = false;
-		this.fontSize = params.fontSize ?? 16; 
-		this.font = `Bold ${this.fontSize}px ${fontFamily3}, Sans-Serif`;
 	}
 
 	click() {
@@ -105,28 +192,25 @@ class Button extends Control {
 		if (!hover) hover = this.hovering;
 		ctx.strokeStyle = '#4a4a4a';
 		ctx.lineWidth = 3;
-		ctx.fillStyle = (hover) ? this.hoverColor : this.color;
+		if (hover) {
+			ctx.fillStyle = this.hoverColor;
+			this.text.color = this.color;
+		} else {
+			ctx.fillStyle = this.color;
+			this.text.color = this.hoverColor;
+		}
 		ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
 		ctx.strokeRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
-		const textColor = (hover) ? this.color : this.hoverColor;
-		drawText(ctx, this.text, 
-            {x: this.pos.x+this.dim.w/2, y: this.pos.y+this.dim.h/2+this.fontSize/2-2}, 
-            textColor, this.font);
+		this.text.draw(ctx);
 	}
-}
 
-class Control {
-    constructor(parent, pos, dim, margin) {
-        this.parent = parent;
-        this.pos = pos ? {...pos} : null;
-        this.dim = dim ? {...dim} : {w: 0, h: 0};
-        this.margin = margin ? {...margin} : {top: 0, right: 0, bottom: 0, left: 0};
-    }
-    
-    contains(p) {
-		return p.x > this.pos.x && p.x < this.pos.x+this.dim.w &&
-			p.y > this.pos.y && p.y < this.pos.y+this.dim.h;
-    }
+	pack() {
+		this.text.pack();
+		if (!this.dim.x || !this.dim.y) {
+			this.dim.x = this.text.dim.x + this.text.margin.left + this.text.margin.right;
+			this.dim.y = this.text.dim.y + this.text.margin.top + this.text.margin.bottom;
+		}
+	}
 }
 
 class Counter extends Control {
@@ -136,21 +220,15 @@ class Counter extends Control {
 		this.color = params.color;
 		this.pText = params.pText;
 		this.pCount = params.pCount;
-		this.fontSize = fontSize ?? 16; 
+		this.fontSize = params.fontSize ?? 16; 
 		this.font = `Bold ${this.fontSize}px Sans-Serif`;
-		this.count = count ?? 0;
+		this.count = params.count ?? 0;
 	}
 
 	draw(ctx) {
 		drawText(ctx, this.text, addPoints(this.pos, this.pText), this.color, this.font);
 		drawText(ctx, this.count, addPoints(this.pos, this.pCount), this.color, this.font);
 	}
-}
-
-class HBox extends Box {
-    constructor(parent, pos, margin, align) {
-        super(parent, pos, margin, align);
-    }
 }
 
 class PadButtonField {
@@ -401,10 +479,4 @@ class Timer {
 	unpause() {
 		if (this.active && !this.to) this.tick();
 	}
-}
-
-class VBox extends Box {
-    constructor(parent, pos, margin, align) {
-        super(parent, pos, margin, align);
-    }
 }

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<link rel='icon' href='/Images/icon.png'>
+<title>Box Test</title>
+<script src='/script/mouse.js'></script>
+<script src='/script/controls.js'></script>
+<script>
+fontFamily3 = 'Times New Roman';
+let vb, vb2;
+window.addEventListener('load', e => {
+	const canvas = document.querySelector('canvas');
+	const ctx = canvas.getContext('2d');
+	
+	const text1 = new Text({text: 'Peter Piper picked a porker', color: '#0f0'}, ctx);
+	const text2 = new Text({text: 'Part-way past the pauperie', color: '#f00'}, ctx);
+	const text3 = new Text({text: 'Prizes plead appellate cases', color: '#00f', margin: {top: 10, left: 20, bottom: 5, right: 30}}, ctx);
+	const text4 = new Text({text: 'Down to murder in the 3rd degree'}, ctx);
+
+	vb = new VBox({pos: {x:20, y:20}, align: 'center'});
+
+	vb.add(text1);
+	vb.add(text2);
+	vb.add(text3);
+	vb.add(text4);
+
+	//vb.pack();
+	//vb.draw(ctx);
+
+	vb2 = new VBox({/*pos: {x:10, y:50},*/ margin: {top: 50, left: 5, bottom: 0, right: 20}});
+	
+	const text5 = new Text({text: "a pig went home to market"}, ctx);
+	const button1 = new Button({text: "poke the pig", dim: {w: 200, h: 100}, color: '#ccc', hoverColor: '#500'}, ctx);
+
+	vb2.add(text5);
+	vb2.add(button1);
+	vb.add(vb2);
+
+	vb.packAll();
+	vb.draw(ctx, true);
+});
+</script>
+</head>
+<body>
+<canvas width='500' height='500' style='border: 1px solid black;'></canvas>
+</body>
+</html>

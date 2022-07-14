@@ -5,15 +5,15 @@ class Game extends MouseListener {
 		this.canvas = canvas;
 		this.dim = {w: canvas.width, h: canvas.height};
 		this.ctx = canvas.getContext('2d');
-		this.title = new TitleScreen(copyDim(this.dim), this);
-		this.menu = new MenuScreen(copyDim(this.dim), this);
-        this.config = new PadConfigScreen(copyDim(this.dim), this);
         this.main = new MainScreen(this);
+		this.menu = new MenuScreen(this);
+        this.config = new PadConfigScreen(this);
+		this.title = new TitleScreen(this);
 		this.grid = null;
 		this.animator = new Animator(this);
 		this.paused = true;
 		this.updatePage = updatePage;
-		this.bg = new StarField(copyDim(this.dim));
+		this.bg = new StarField(this.dim); // TODO dim
 		this.sounds = new Sounds(this);
 		this.animator.start();
 		this.padState = new GamepadState(this);

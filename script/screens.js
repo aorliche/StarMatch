@@ -5,7 +5,7 @@ class MainScreen extends MouseListener {
 		this.game = game;
 		this.items = [];
 		for (let i=0; i<types.length; i++) {
-			this.items.push(new CatalogItem(types[i], {x: 160+(20+10)*i, y: 10}, {w: 30, h:50}));
+			this.items.push(new Astron(types[i], {x: 160+(20+10)*i, y: 10}, {w: 30, h:50}));
 		}
 		this.counters = [
 			new Counter('Level', '#ddd', {x:460, y:25, rjust:true}, {x:465, y:25, ljust:true}, 18),
@@ -98,9 +98,9 @@ class MainScreen extends MouseListener {
 }
 
 class MenuScreen extends MouseListener {
-	constructor(dim, game) {
+	constructor(game) {
 		super();
-		this.dim = dim;
+		this.dim = game.dim;
 		this.game = game;
 		this.visible = false;
 		this.buttons = [
@@ -180,9 +180,9 @@ class MenuScreen extends MouseListener {
 }
 
 class PadConfigScreen extends MouseListener {
-    constructor(dim, game) {
+    constructor(game) {
         super();
-        this.dim = dim;
+        this.dim = game.dim;
         this.game = game;
         this.map = {};
         this.fieldIdx = 0;
@@ -285,9 +285,9 @@ class PadConfigScreen extends MouseListener {
 }
 
 class TitleScreen extends MouseListener {
-	constructor(dim, game) {
+	constructor(game) {
 		super();
-		this.dim = dim;
+		this.dim = game.dim;
 		this.game = game;
         this.enabled = false;
         this.buttons = [
