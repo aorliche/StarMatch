@@ -9,7 +9,7 @@
 <script src='script/functions.js'></script>
 <script>
 fontFamily3 = 'Times New Roman';
-let vb, vb2, hb;
+let vb, vb2, hb, hb0, vb3;
 window.addEventListener('load', e => {
 	const canvas = document.querySelector('canvas');
 	const ctx = canvas.getContext('2d');
@@ -19,7 +19,10 @@ window.addEventListener('load', e => {
 	const text3 = new Text({text: 'Piggies plead appellate cases', color: '#88f', margin: {top: 10, left: 20, bottom: 5, right: 30}}, ctx);
 	const text4 = new Text({text: 'Down to murder in the swine degree'}, ctx);
 
-	vb = new VBox({pos: {x:20, y:20}, align: 'center'});
+	hb0 = new HBox({pos: {x:20, y:20}});
+	vb = new VBox({align: 'center'});
+
+	hb0.add(vb);
 
 	vb.add(text1);
 	vb.add(text2);
@@ -52,7 +55,7 @@ window.addEventListener('load', e => {
 
 	vb.add(text8);
 
-	let nToLoad = 4;
+	let nToLoad = 8;
 	function loadFn() {
 		if (--nToLoad == 0) {
 			const sunA = new Astron({type: 'sun', img: sunImgs[0], flamed: sunImgs});
@@ -76,10 +79,13 @@ window.addEventListener('load', e => {
 				}
 			}
 			vb.add(sunA);
-			vb.packAll();
+			vb3.add(new ImageCounter({imgs: iceImgs, max: 5, spacing: 5, count: 4}));
+			vb3.add(new ImageCounter({imgs: blastImgs, max: 5, spacing: 5, count: 2, margin: 5}));
+
+			hb0.packAll();
 			ctx.fillStyle = '#3e2f3d';
-			ctx.fillRect(0,0,500,600);
-			vb.draw(ctx, true);
+			ctx.fillRect(0,0,1000,600);
+			hb0.draw(ctx, true);
 		}
 	}
 
@@ -101,17 +107,61 @@ window.addEventListener('load', e => {
 		});
 	});
 
-	canvas.addEventListener('mousemove', e => {
-		const p = getCursorPosition(canvas, e);
-		vb.mousemove(p);
-		ctx.fillStyle = '#3e2f3d';
-		ctx.fillRect(0,0,500,600);
-		vb.draw(ctx, true);
+	const iceImgs = [];
+
+	[0,1,2].forEach(n => {
+		const img = new Image();
+		img.src = `Images/Counters/ice${n}.png`;
+		iceImgs.push(img);
+		img.addEventListener('load', e => {
+			loadFn();
+		});
 	});
+
+	const blastImgs = [];
+
+	[0].forEach(n => {
+		const img = new Image();
+		img.src = `Images/Counters/blast${n}.png`;
+		blastImgs.push(img);
+		img.addEventListener('load', e => {
+			loadFn();
+		});
+	});
+
+	['mousemove', 'mousedown', 'mouseup', 'mouseout', 'click'].forEach(type => {
+		canvas.addEventListener(type, e => {
+			const p = getCursorPosition(canvas, e);
+			hb0[type](p);
+			ctx.fillStyle = '#3e2f3d';
+			ctx.fillRect(0,0,1000,600);
+			hb0.draw(ctx, true);
+		});
+	});
+
+	vb3 = new VBox({});
+	const count1 = new TextCounter({text: "Score: ", color: '#f00', count: 1000, dim: {w: 120, h: 0}, margin: 10}, ctx);
+
+	vb3.add(count1);
+	hb0.add(vb3);
+
+	vb4 = new VBox({});
+	const config1 = new PadConfigButton({text: 'A', dim: {w: 120, h: 30}}, ctx, null);
+	const config2 = new PadConfigButton({text: 'B', dim: {w: 120, h: 30}}, ctx, null);
+	const slider1 = new Slider({
+		text: 'Tectonic Activity', 
+		labels: ['5s', '10s', '20s', '30s', '50s', 'Off'], margin: 10},
+		ctx);
+
+	vb4.add(config1);
+	vb4.add(config2);
+	vb4.add(slider1);
+
+	hb0.add(vb4);
 });
 </script>
 </head>
 <body>
-<canvas width='500' height='600' style='border: 1px solid black;'></canvas>
+<canvas width='1000' height='600' style='border: 1px solid black;'></canvas>
 </body>
 </html>

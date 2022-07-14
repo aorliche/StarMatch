@@ -21,9 +21,16 @@ class Control extends MouseListener {
 		}
     }
     
-    contains(p) {
-		return p.x > this.pos.x && p.x < this.pos.x+this.dim.w &&
+    contains(p, noupdate) {
+		const yes = p.x > this.pos.x && p.x < this.pos.x+this.dim.w &&
 			p.y > this.pos.y && p.y < this.pos.y+this.dim.h;
+		if (yes && !noupdate) {
+			if (this.parent) 
+				this.parent.updateOver(this, p);
+			else 
+				this.updateOver(this, p);
+		}
+		return yes;
     }
 
 	draw(ctx) {}
@@ -57,9 +64,9 @@ class Text extends Control {
 		if (pass == 1) return;
 		this.ctx.font = this.font;
 		const tm = this.ctx.measureText(this.text);
-		this.dim.w = tm.width;
 		this.ascent = tm.actualBoundingBoxAscent;
 		this.descent = tm.actualBoundingBoxDescent;
+		this.dim.w = tm.width;
 		this.dim.h = this.ascent + this.descent;
 	}
 }
@@ -69,21 +76,23 @@ class Box extends Control {
         super(params);
         this.children = [];
         this.align = params.align ?? '';
+		this.over = null;
     }
 	
 	action(type, p) {
 		this.children.forEach(c => c[type](p));
 	}
 	
-	click(p) {this.action('click', p);}
-	mousedown(p) {this.action('mousedown', p);}
-	mousemove(p) {this.action('mousemove', p);}
-	mouseup(p) {this.action('mouseup', p);}
+	click(p) {if (this.contains(p)) this.action('click', p);}
+	mousedown(p) {if (this.contains(p)) this.action('mousedown', p);}
+	mousemove(p) {if (this.contains(p)) this.action('mousemove', p);}
+	mouseup(p) {if (this.contains(p)) this.action('mouseup', p);}
 	mouseout(p) {this.action('mouseout', p);}
-	rightClick(p) {this.action('rightClick', p);}
+	rightClick(p) {if (this.contains(p)) this.action('rightClick', p);}
     
     add(control) {
         this.children.push(control);
+		control.parent = this;
     }
 
 	draw(ctx, debug) {
@@ -166,6 +175,16 @@ class Box extends Control {
     remove(control) {
         this.controls.splice(this.controls.indexOf(control), 1);
     }
+
+	updateOver(over, p) {
+		if (this.parent) 
+			this.parent.updateOver(over, p);
+		else if (this.over != over) {
+			if (this.over && !this.over.contains(p, true)) // no infinite recursion
+				this.over.mouseout();
+			this.over = over;
+		}
+	}
 }
 
 class HBox extends Box {
@@ -187,14 +206,15 @@ class Button extends Control {
 		params.margin = null; // Margin on text not the same as margin on button
 		this.text = new Text(params, ctx);
 		this.text.fontWeight == params.fontWeight ?? 'Bold';
-		this.color = params.color;
-		this.hoverColor = params.hoverColor;
+		this.color = params.color ?? '#ddd';
+		this.hoverColor = params.hoverColor ?? '#722';
 		this.cb = params.cb;
 		this.hovering = false;
 	}
 
-	click() {
-		this.cb();
+	click(p) {
+		if (this.contains(p))
+			this.cb();
 	}
 
 	draw(ctx, hover) {
@@ -262,27 +282,51 @@ class Astron extends ImageControl {
 	}
 }
 
-class Counter extends Control {
-	constructor(params) {
-        super(null, params.pos, params.dim, params.margin);
-		this.text = params.text;
-		this.color = params.color;
-		this.pText = params.pText;
-		this.pCount = params.pCount;
-		this.fontSize = params.fontSize ?? 16; 
-		this.font = `Bold ${this.fontSize}px Sans-Serif`;
+class TextCounter extends Text {
+	constructor(params, ctx) {
+        super(params, ctx);
+		this.sav = params.text ?? '';
 		this.count = params.count ?? 0;
 	}
 
 	draw(ctx) {
-		drawText(ctx, this.text, addPoints(this.pos, this.pText), this.color, this.font);
-		drawText(ctx, this.count, addPoints(this.pos, this.pCount), this.color, this.font);
+		this.text = `${this.sav} ${this.count}`;
+		super.draw(ctx);
+	}
+
+	pack() {
+		this.text = `${this.sav} ${this.count}`;
+		super.pack();
 	}
 }
 
-class PadButtonField {
-    constructor(config, params) {
-        this.params = params;
+class ImageCounter extends HBox {
+	constructor(params) {
+		super(params);
+		this.imgs = params.imgs;
+		this.max = params.max;
+		this.count = params.count ?? 0;
+		this.spacing = params.spacing ?? 5;
+		for (let i=0; i<this.max; i++) {
+			this.add(new ImageControl({img: this.imgs[i%this.imgs.length]}));
+			if (i > 0) 
+				this.children.at(-1).margin.left = this.spacing;
+		}
+	}
+
+	draw(ctx) {
+		this.children.slice(0, this.count).forEach(c => c.draw(ctx));
+	}
+}
+
+class PadConfigButton extends Button {
+    constructor(params, ctx, config) {
+		super(params, ctx);
+		this.color = params.color ?? '#ddd';
+		this.hoverColor = params.hoverColor ?? '#518089';
+		this.setColor = params.setColor ?? '#ddd';
+		this.setHoverColor = params.setHoverColor ?? '#292';
+		this.name = params.name ?? params.text;
         this.config = config;
     }
     
@@ -314,123 +358,115 @@ class PadButtonField {
         }
         return false;
     }
-    
-    contains(p) {
-		return p.x > this.params.pos.x && p.x < this.params.pos.x+this.params.dim.w &&
-			p.y > this.params.pos.y && p.y < this.params.pos.y+this.params.dim.h;
-	}
-    
-    draw(ctx) {
-        let textColor, text;
-		ctx.strokeStyle = '#4a4a4a';
-		ctx.lineWidth = 3;
-        if (this.config.fields[this.config.fieldIdx] == this) {
-            ctx.fillStyle = '#ddd';
-            textColor = '#722';
-            text = this.params.text + " (Press)";
-        } else if (this.button || this.button === 0 || this.axis || this.axis === 0) {
-            ctx.fillStyle = '#4a4';
-            textColor = '#ddd';
-            text = this.params.text;
-            if (this.button || this.button === 0) {
-                text += ` (Bu${this.button})`;
-            } else {
-                text += ` (Ax${this.axis}:${this.value})`;
-            }
-        } else {
-            if (this.hovering) {
-                ctx.fillStyle = '#ddd';
-                textColor = '#722';
-            } else {
-                ctx.fillStyle = '#a55';
-                textColor = '#ddd';
-            }
-            text = this.params.text;
-        }
-		ctx.fillRect(this.params.pos.x, this.params.pos.y, this.params.dim.w, this.params.dim.h);
-		ctx.strokeRect(this.params.pos.x, this.params.pos.y, this.params.dim.w, this.params.dim.h);
-        drawText(ctx, text, 
-            {x: this.params.pos.x+this.params.dim.w/2, y: this.params.pos.y+this.params.dim.h/2+8-4}, 
-            textColor, '12px Sans-Serif');
-    }
-    
-    get name() {
-        if (this.params.name) return this.params.name;
-        else return this.params.text;
-    }
-}
 
-class Slider {
-	constructor(text, centerLabel, labelColor, labelFontSize, left, dim, color, centerText, fontSize, ticks, pos, cb) {
-		this.text = text;
-		this.centerLabel = centerLabel;
-		this.labelColor = labelColor;
-		this.labelFontSize = labelFontSize;
-		this.labelFont = `Bold ${this.labelFontSize}px Sans-Serif`;
-		this.left = left;
-		this.dim = dim;
-		this.color = color;
-		this.centerText = centerText;
-		this.fontSize = fontSize ?? 12;
-		this.font = `Bold ${this.fontSize}px Sans-Serif`;
-		this.ticks = ticks;
-		const n = ticks.length-1;
-		this.tickLoc = [...this.ticks.keys()].map(i => ({x: left.x + i*(dim.w/n), y: left.y}));
-		this.pos = pos;
-		this.cb = cb;
-		this.selected = false;
-		this.hovering = false;
-	}
-
-	contains(p) {
-		return distance(p, this.tickLoc[this.pos]) < 8;
+	click(p) {
+		if (!this.contains(p)) return;
+		if (this.config) 
+			this.config.buttons.forEach(b => b.selected = false);
+		this.selected = !this.selected;
 	}
 
 	draw(ctx) {
-		drawText(ctx, this.text, this.centerLabel, this.labelColor, this.labelFont);
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = this.color;
-		ctx.fillStyle = '#ddd';
-		ctx.beginPath();
-		ctx.moveTo(this.left.x, this.left.y);
-		ctx.lineTo(this.left.x+this.dim.w, this.left.y);
-		ctx.closePath();
-		ctx.stroke();
-		ctx.lineWidth = 1;
-		for (let i=0; i<this.tickLoc.length; i++) {
-			ctx.beginPath();
-			ctx.moveTo(this.tickLoc[i].x, this.tickLoc[i].y - this.dim.h/2);
-			ctx.lineTo(this.tickLoc[i].x, this.tickLoc[i].y + this.dim.h/2);
-			ctx.closePath();
-			ctx.stroke();
-			if (this.pos == i) {
-				drawCircle(ctx, this.tickLoc[i], 6, '#d00');
-				if (this.selected || this.hovering) {
-					drawCircle(ctx, this.tickLoc[i], 4, '#ddd');
+		let color, hoverColor;
+		const savText = this.text.text;
+		const savColor = this.color;
+		const savHoverColor = this.hoverColor;
+		const savHovering = this.hovering;
+		if (this.hovering || this.selected) {
+			this.color = this.isSet() ? this.setHoverColor : savHoverColor;
+			this.hoverColor = this.isSet() ? this.setColor : savColor;
+			this.hovering = false;
+			if (this.selected) {
+				this.text.text = `${this.text.text} (Press)`;
+			}
+		} else if (this.isSet()) {
+			this.color = this.setColor;
+			this.hoverColor = this.setHoverColor;		
+			this.text.text = `${this.text.text} ${this.binding}`;
+		} 
+		this.text.pack();
+		this.text.pos.x = this.pos.x + this.dim.w/2 - this.text.dim.w/2;
+		super.draw(ctx);
+		this.text.text = savText;
+		this.color = savColor;
+		this.hoverColor = savHoverColor;
+		this.hovering = savHovering;
+	}
+
+	get binding() {
+		if (this.button || this.button === 0) 
+			return `[Bu${this.button}]`;		
+		else 
+			return `[Ax${this.axis}:${this.value}]`;
+	}
+
+	isSet() {
+		return this.button || this.button === 0 || this.axis || this.axis === 0;
+	}
+}
+
+class SliderBar extends Control {
+	constructor(params) {
+		super(params);
+		this.color = params.color ?? '#f00';
+		this.hoverColor = params.hoverColor ?? '#ddd';
+		this.n = params.n;
+		this.index = params.index;
+		this.radius = params.radius;
+		this.cb = params.cb;
+		this.tickLoc = [];
+	}
+
+	draw(ctx) {
+		const dw = this.dim.w/(this.n-1);
+		const tw = 3;
+		ctx.fillStyle = this.color;
+		ctx.fillRect(this.pos.x, this.pos.y+this.dim.h/2-1, this.dim.w, 2);
+		for (let i=0; i<this.n; i++) {
+			const x = this.pos.x + i*dw;
+			const y = this.pos.y+this.dim.h/2;
+			ctx.fillStyle = this.color;
+			ctx.fillRect(x, y-4, tw, 8);
+			if (i == this.index) {
+				drawCircle(ctx, {x: x+tw/2, y: y}, this.radius, this.color);
+				if (this.hovering) {
+					drawCircle(ctx, {x: x+tw/2, y: y}, this.radius*0.7, this.hoverColor);
 				}
 			}
 		}
-		const txt = this.ticks[this.pos];
-		const font = (txt == '\u221e') ? `Bold ${Math.floor(1.5*this.fontSize)}px Sans-Serif` : this.font;
-		drawText(ctx, txt, this.centerText, this.color, font);
 	}
 
-	get value() {
-		return this.ticks[this.pos];
+	click(p) {
+		this.selected = true;
+		this.mousemove(p);
+		this.selected = false;
 	}
-
+	
 	mousedown(p) {
+		p.x += 5;
+		if (this.contains(p)) {
+			this.selected = true;
+		}
+		p.x -= 10;
 		if (this.contains(p)) {
 			this.selected = true;
 		}
 	}
 
 	mousemove(p) {
-		this.hovering = this.contains(p);
+		this.hovering = false;
+		p.x += 5;
+		if (this.contains(p)) this.hovering = true;
+		p.x -= 10;
+		if (this.contains(p)) this.hovering = true;
+		const index = argmin(this.ticks.map(x => Math.abs(p.x-x)));
+		if (this.index != index) 
+			this.hovering = false;
 		if (this.selected) {
-			const oldPos = this.pos;
-			this.pos = argmin(this.tickLoc.map(loc => distance(p, loc)));
-			if (this.pos != oldPos) this.cb(this.ticks[this.pos]);
+			if (this.index != index) {
+				this.index = index;
+				this.cb(this.index);
+			}
 		}
 	}
 
@@ -438,14 +474,59 @@ class Slider {
 		this.selected = false;
 	}
 
-	mouseout() {
-		this.hovering = false;
-		this.selected = false;
+	pack(pass) {
+		if (pass == 1) {
+			const dw = this.dim.w/(this.n-1);
+			this.ticks = [];
+			for (let i=0; i<this.n; i++) {
+				this.ticks.push(this.pos.x + i*dw);
+			}
+		}
 	}
 }
 
+class Slider extends HBox {
+	constructor(params, ctx) {
+		super(params);
+		params.dim = null;
+		params.margin = null;
+		this.text = new Text(params, ctx);
+		this.text.pack();
+		this.cb = params.cb;
+		params.spacing = params.spacing ?? 20;
+		this.bar = new SliderBar({
+			dim: {w: params.barw ?? 100, h: params.barh ?? 15}, 
+			margin: {top: 0, bottom: 0, left: params.spacing, right: params.spacing},
+			n: params.labels.length,
+			index: params.index ?? 0,
+			radius: params.radius ?? 6,
+			cb: (idx) => {
+				this.children[2].text = this.labels[idx];
+				if (this.cb) this.cb(this.labels[idx]);
+			},
+			color: params.color
+		});
+		this.labels = params.labels;
+		this.label = new Text({...params, text: this.labels[this.bar.index]}, ctx);
+		this.label.pack();
+		this.add(this.text);
+		this.add(this.bar);
+		this.add(this.label);
+		this.align = 'center';
+	}
 
-class Timer {
+	mousedown(p) {
+		this.bar.mousedown(p);
+	}
+	
+	mouseout() {
+		this.bar.hovering = false;
+		this.bar.selected = false;
+	}
+}
+
+class Timer extends Text {
+	constructor(params) {
 	constructor(text, color, pText, fontSize, time, cb, loop) {
 		this.text = text;
 		this.color = color;
