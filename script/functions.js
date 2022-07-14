@@ -202,7 +202,7 @@ function drawLine(ctx, from, to, color, width) {
 	ctx.stroke();
 }
 
-function drawText(ctx, text, p, color, font, stroke) {
+/*function drawText(ctx, text, p, color, font, stroke) {
 	ctx.save();
 	if (font) ctx.font = font;
 	const tm = ctx.measureText(text);
@@ -220,7 +220,7 @@ function drawText(ctx, text, p, color, font, stroke) {
 	}
 	ctx.restore();
 	return tm;
-}
+}*/
 
 function addPoints(a, b) {
     return {x: a.x+b.x, y: a.y+b.y};

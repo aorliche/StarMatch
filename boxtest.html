@@ -6,17 +6,18 @@
 <title>Box Test</title>
 <script src='/script/mouse.js'></script>
 <script src='/script/controls.js'></script>
+<script src='/script/functions.js'></script>
 <script>
 fontFamily3 = 'Times New Roman';
-let vb, vb2;
+let vb, vb2, hb;
 window.addEventListener('load', e => {
 	const canvas = document.querySelector('canvas');
 	const ctx = canvas.getContext('2d');
 	
 	const text1 = new Text({text: 'Peter Piper picked a porker', color: '#0f0'}, ctx);
 	const text2 = new Text({text: 'Part-way past the pauperie', color: '#f00'}, ctx);
-	const text3 = new Text({text: 'Prizes plead appellate cases', color: '#00f', margin: {top: 10, left: 20, bottom: 5, right: 30}}, ctx);
-	const text4 = new Text({text: 'Down to murder in the 3rd degree'}, ctx);
+	const text3 = new Text({text: 'Piggies plead appellate cases', color: '#88f', margin: {top: 10, left: 20, bottom: 5, right: 30}}, ctx);
+	const text4 = new Text({text: 'Down to murder in the swine degree'}, ctx);
 
 	vb = new VBox({pos: {x:20, y:20}, align: 'center'});
 
@@ -28,21 +29,89 @@ window.addEventListener('load', e => {
 	//vb.pack();
 	//vb.draw(ctx);
 
-	vb2 = new VBox({/*pos: {x:10, y:50},*/ margin: {top: 50, left: 5, bottom: 0, right: 20}});
+	vb2 = new VBox({/*pos: {x:10, y:50},*/ margin: {top: 50, left: 5, bottom: 0, right: 60}});
 	
-	const text5 = new Text({text: "a pig went home to market"}, ctx);
-	const button1 = new Button({text: "poke the pig", dim: {w: 200, h: 100}, color: '#ccc', hoverColor: '#500'}, ctx);
+	const text5 = new Text({text: "a pig went home to market", fontSize: 18, margin: {top: 0, left: 20, bottom: 0, right: 0}}, ctx);
+	const button1 = new Button({text: "poke the pig", fontSize: 26, fontWeight: 'Bold', 
+		dim: {w: 200, h: 100}, color: '#ccc', hoverColor: '#500'}, ctx);
 
 	vb2.add(text5);
 	vb2.add(button1);
 	vb.add(vb2);
 
-	vb.packAll();
-	vb.draw(ctx, true);
+	hb = new HBox({margin: {top: 10, left: 10, right: 0, bottom: 0}});
+
+	const text6 = new Text({text: "tagline:"}, ctx);
+	const text7 = new Text({text: "The Space Before Empire", margin: 20}, ctx);
+
+	hb.add(text6);
+	hb.add(text7);
+	vb.add(hb);
+
+	const text8 = new Text({text: "Scroll over the astron below!", fontWeight: 'Bold', fontSize: 24}, ctx);
+
+	vb.add(text8);
+
+	let nToLoad = 4;
+	function loadFn() {
+		if (--nToLoad == 0) {
+			const sunA = new Astron({type: 'sun', img: sunImgs[0], flamed: sunImgs});
+			function cbFun() {
+				sunA.img = sunA.flamed[(sunA.flamed.indexOf(sunA.img)+1)%sunA.flamed.length];
+				ctx.fillStyle = '#3e2f3d';
+				ctx.fillRect(sunA.pos.x,sunA.pos.y,sunA.dim.w,sunA.dim.h);
+				sunA.draw(ctx, true);
+			}
+			let cb = null;
+			sunA.mousemove = function(p) {
+				if (!cb && sunA.contains(p)) {
+					cb = setInterval(cbFun, 200);
+				} else if (cb && !sunA.contains(p)) {
+					clearInterval(cb);
+					cb = null;
+					sunA.img = sunA.flamed[0];
+					ctx.fillStyle = '#3e2f3d';
+					ctx.fillRect(sunA.pos.x,sunA.pos.y,sunA.dim.w,sunA.dim.h);
+					sunA.draw(ctx, true);
+				}
+			}
+			vb.add(sunA);
+			vb.packAll();
+			ctx.fillStyle = '#3e2f3d';
+			ctx.fillRect(0,0,500,600);
+			vb.draw(ctx, true);
+		}
+	}
+
+	const sun0 = new Image(); 
+	sun0.src = '/Images/Astrons/sun_a0.png';
+	sun0.addEventListener('load', e => {
+		hb.add(new ImageControl({img: sun0}));	
+		loadFn();
+	});
+	
+	const sunImgs = [sun0];
+
+	[1,2,3].forEach(n => {
+		const img = new Image();
+		img.src = `/Images/Astrons/sun_a${n}.png`;
+		sunImgs.push(img);
+		img.addEventListener('load', e => {
+			loadFn();
+		});
+	});
+
+	canvas.addEventListener('mousemove', e => {
+		const p = getCursorPosition(canvas, e);
+		vb.mousemove(p);
+		ctx.fillStyle = '#3e2f3d';
+		ctx.fillRect(0,0,500,600);
+		vb.draw(ctx, true);
+	});
 });
 </script>
 </head>
 <body>
-<canvas width='500' height='500' style='border: 1px solid black;'></canvas>
+<canvas width='500' height='600' style='border: 1px solid black;'></canvas>
 </body>
 </html>

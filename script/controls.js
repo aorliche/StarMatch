@@ -9,7 +9,16 @@ class Control extends MouseListener {
         this.parent = params.parent;
         this.pos = params.pos ? {...params.pos} : null;
         this.dim = params.dim ? {...params.dim} : {w: 0, h: 0};
-        this.margin = params.margin ? {...params.margin} : {top: 0, right: 0, bottom: 0, left: 0};
+		if (params.margin) {
+			if (isNaN(params.margin)) {
+				this.margin = {...params.margin};
+			} else {
+				const m = params.margin;
+				this.margin = {top: m, right: m, bottom: m, left: m};
+			}
+		} else {
+			this.margin = {top: 0, right: 0, bottom: 0, left: 0};
+		}
     }
     
     contains(p) {
@@ -35,52 +44,23 @@ class Text extends Control {
 
 	draw(ctx) {
 		const p = {x: this.pos.x, y: this.pos.y+this.ascent};
+		ctx.font = this.font;
 		ctx.fillStyle = this.color;
 		ctx.fillText(this.text, p.x, p.y);
 	}
 
+	get font() {
+		return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, Sans-Serif`;
+	}
+
 	pack(pass) {
 		if (pass == 1) return;
-		const font = `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, Sans-Serif`;
+		this.ctx.font = this.font;
 		const tm = this.ctx.measureText(this.text);
 		this.dim.w = tm.width;
 		this.ascent = tm.actualBoundingBoxAscent;
 		this.descent = tm.actualBoundingBoxDescent;
 		this.dim.h = this.ascent + this.descent;
-	}
-}
-
-class Astron extends Control {
-	constructor(params) {
-        super(params);
-		this.type = params.type;
-		this.count = 0;
-		this.alpha = 0;
-	}
-
-	draw(ctx) {
-		const im = images[this.type];
-		let [w,h] = scaleImage(im.width, im.height, this.dim.w-10, this.dim.h-20);
-		if (this.type == 'planet') {
-			w *= 1.2; 
-			h *= 1.2;
-		}
-        drawText(ctx, this.count, 
-            {x: this.pos.x+this.dim.w/2, y: this.pos.y+this.dim.h-6}, 
-            'white', 'Bold 12px Sans-Serif');
-		ctx.drawImage(im, 
-            this.pos.x+this.dim.w/2-w/2, 
-            this.pos.y+this.dim.h/2-h/2-10, 
-            w, h);
-	}
-
-	frame() {
-		this.alpha -= 0.01;
-	}
-
-	update(n) {
-		this.count += n;
-		this.alpha = 1;
 	}
 }
 
@@ -90,6 +70,17 @@ class Box extends Control {
         this.children = [];
         this.align = params.align ?? '';
     }
+	
+	action(type, p) {
+		this.children.forEach(c => c[type](p));
+	}
+	
+	click(p) {this.action('click', p);}
+	mousedown(p) {this.action('mousedown', p);}
+	mousemove(p) {this.action('mousemove', p);}
+	mouseup(p) {this.action('mouseup', p);}
+	mouseout(p) {this.action('mouseout', p);}
+	rightClick(p) {this.action('rightClick', p);}
     
     add(control) {
         this.children.push(control);
@@ -109,16 +100,32 @@ class Box extends Control {
  	// pass == 0: set dims of self and children
 	// pass == 1: set postion of children (parent sets your pos)
     pack(pass) {
-        let w,h;
+        let w,h,maxLm,maxTm;
 		if (pass === 0)
 			this.children.forEach(c => {
 				if (c.pack) c.pack(0);
 			});
         if (this instanceof HBox) {
 			w = 0;
-            h = Math.max(...this.children.map(c => c.dim.h + c.margin.top + c.margin.bottom));
+			if (this.align == 'center') {
+				const maxTh = Math.max(...this.children.map(c => c.dim.h/2 + c.margin.top));
+				const maxBh = Math.max(...this.children.map(c => c.dim.h/2 + c.margin.bottom));
+				h = 2*Math.max(maxTh, maxBh);
+			} else {
+				maxTm = Math.max(...this.children.map(c => c.margin.top));
+				const maxBh = Math.max(...this.children.map(c => c.dim.h + c.margin.bottom));
+				h = maxTm + maxBh;
+			}
         } else {
-            w = Math.max(...this.children.map(c => c.dim.w + c.margin.left + c.margin.right));
+			if (this.align == 'center') {
+				const maxLw = Math.max(...this.children.map(c => c.dim.w/2 + c.margin.left));
+				const maxRw = Math.max(...this.children.map(c => c.dim.w/2 + c.margin.right));
+				w = 2*Math.max(maxLw, maxRw);
+			} else {
+				maxLm = Math.max(...this.children.map(c => c.margin.left));
+				const maxRw = Math.max(...this.children.map(c => c.dim.w + c.margin.right));
+				w = maxLm + maxRw;
+			}
 			h = 0;
         }
         this.children.forEach(c => {
@@ -127,9 +134,9 @@ class Box extends Control {
 				if (pass == 1) {
 					c.pos = {x: this.pos.x + w, y: this.pos.y};
 					if (this.align == 'center') 
-						c.pos.y += this.margin.top + h/2 - c.dim.h/2;
-					else 
-						c.pos.y += this.margin.top + c.margin.top;
+						c.pos.y += h/2 - c.dim.h/2;
+					else
+						c.pos.y += maxTm;
 				}
 				w += c.dim.w + c.margin.right;
 			} else {
@@ -137,9 +144,9 @@ class Box extends Control {
 				if (pass == 1) {
 					c.pos = {x: this.pos.x, y: this.pos.y + h};
 					if (this.align == 'center')
-						c.pos.x += this.margin.left + w/2 - c.dim.w/2;
-					else if (this.align == 'left' || this.align == '')
-						c.pos.x += this.margin.left + c.margin.left;
+						c.pos.x += w/2 - c.dim.w/2;
+					else
+						c.pos.x += maxLm;
 				}
 				h += c.dim.h + c.margin.bottom;
 			}
@@ -176,6 +183,8 @@ class VBox extends Box {
 class Button extends Control {
 	constructor(params, ctx) {
         super(params);
+		params.dim = null; // Text dim auto-calculated anyway
+		params.margin = null; // Margin on text not the same as margin on button
 		this.text = new Text(params, ctx);
 		this.text.fontWeight == params.fontWeight ?? 'Bold';
 		this.color = params.color;
@@ -189,27 +198,67 @@ class Button extends Control {
 	}
 
 	draw(ctx, hover) {
-		if (!hover) hover = this.hovering;
 		ctx.strokeStyle = '#4a4a4a';
 		ctx.lineWidth = 3;
-		if (hover) {
-			ctx.fillStyle = this.hoverColor;
-			this.text.color = this.color;
-		} else {
+		if (this.hovering) {
 			ctx.fillStyle = this.color;
 			this.text.color = this.hoverColor;
+		} else {
+			ctx.fillStyle = this.hoverColor;
+			this.text.color = this.color;
 		}
 		ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
 		ctx.strokeRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
 		this.text.draw(ctx);
 	}
 
+	mousemove(p) {
+		this.hovering = this.contains(p);
+	}
+
+	mouseout(p) {
+		this.hovering = false;
+	}
+
 	pack() {
+		// Pass 0
 		this.text.pack();
 		if (!this.dim.x || !this.dim.y) {
 			this.dim.x = this.text.dim.x + this.text.margin.left + this.text.margin.right;
 			this.dim.y = this.text.dim.y + this.text.margin.top + this.text.margin.bottom;
 		}
+		// Pass 1
+		if (this.pos) {
+			this.text.pos = {
+				x: this.pos.x + this.dim.w/2 - this.text.dim.w/2,
+				y: this.pos.y + this.dim.h/2 - this.text.dim.h/2
+			};
+		}
+	}
+}
+
+class ImageControl extends Control {
+	constructor(params) {
+		super(params);
+		this.img = params.img;
+	}
+
+	draw(ctx) {
+		let [w,h] = scaleImage(this.img.width, this.img.height, this.dim.w, this.dim.h);
+		ctx.drawImage(this.img, this.pos.x, this.pos.y, w, h);
+	}
+
+	pack(pass) {
+		if (pass == 1) return;
+		if (!this.dim.x || !this.dim.y) this.dim = {w: this.img.width, h: this.img.height};
+	}
+}
+
+class Astron extends ImageControl {
+	constructor(params) {
+        super(params);
+		this.type = params.type;
+		this.flamed = params.flamed ?? [];
 	}
 }
 
