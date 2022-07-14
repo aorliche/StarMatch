@@ -29,9 +29,6 @@ window.addEventListener('load', e => {
 	vb.add(text3);
 	vb.add(text4);
 
-	//vb.pack();
-	//vb.draw(ctx);
-
 	vb2 = new VBox({/*pos: {x:10, y:50},*/ margin: {top: 50, left: 5, bottom: 0, right: 60}});
 	
 	const text5 = new Text({text: "a pig went home to market", fontSize: 18, margin: {top: 0, left: 20, bottom: 0, right: 0}}, ctx);
@@ -61,9 +58,6 @@ window.addEventListener('load', e => {
 			const sunA = new Astron({type: 'sun', img: sunImgs[0], flamed: sunImgs});
 			function cbFun() {
 				sunA.img = sunA.flamed[(sunA.flamed.indexOf(sunA.img)+1)%sunA.flamed.length];
-				ctx.fillStyle = '#3e2f3d';
-				ctx.fillRect(sunA.pos.x,sunA.pos.y,sunA.dim.w,sunA.dim.h);
-				sunA.draw(ctx, true);
 			}
 			let cb = null;
 			sunA.mousemove = function(p) {
@@ -83,9 +77,7 @@ window.addEventListener('load', e => {
 			vb3.add(new ImageCounter({imgs: blastImgs, max: 5, spacing: 5, count: 2, margin: 5}));
 
 			hb0.packAll();
-			ctx.fillStyle = '#3e2f3d';
-			ctx.fillRect(0,0,1000,600);
-			hb0.draw(ctx, true);
+			window.requestAnimationFrame(repaint);
 		}
 	}
 
@@ -133,9 +125,6 @@ window.addEventListener('load', e => {
 		canvas.addEventListener(type, e => {
 			const p = getCursorPosition(canvas, e);
 			hb0[type](p);
-			ctx.fillStyle = '#3e2f3d';
-			ctx.fillRect(0,0,1000,600);
-			hb0.draw(ctx, true);
 		});
 	});
 
@@ -152,12 +141,21 @@ window.addEventListener('load', e => {
 		text: 'Tectonic Activity', 
 		labels: ['5s', '10s', '20s', '30s', '50s', 'Off'], margin: 10},
 		ctx);
+	const timer1 = new Timer({text: 'Quasar Storm', cb: e => {}, time: 5, loop: true, active: true, margin: 10}, ctx);
 
 	vb4.add(config1);
 	vb4.add(config2);
 	vb4.add(slider1);
+	vb4.add(timer1);
 
 	hb0.add(vb4);
+
+	function repaint() {
+		ctx.fillStyle = '#3e2f3d';
+		ctx.fillRect(0,0,1000,600);
+		hb0.draw(ctx, true);
+		window.requestAnimationFrame(repaint);
+	}
 });
 </script>
 </head>

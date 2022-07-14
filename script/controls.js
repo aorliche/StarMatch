@@ -526,37 +526,37 @@ class Slider extends HBox {
 }
 
 class Timer extends Text {
-	constructor(params) {
-	constructor(text, color, pText, fontSize, time, cb, loop) {
-		this.text = text;
-		this.color = color;
-		this.pText = pText;
-		this.pTime = null;
-		this.fontSize = fontSize ?? 12;
-		this.font = `Bold ${this.fontSize}px Sans-Serif`;
-		this.time = time;
-		this.timeSav = time;
-		this.cb = cb;
-		this.loop = loop;
-		this.active = false;
-		//this.repaint = repaint;
-		this.to = null;
+	constructor(params, ctx) {
+		super(params, ctx);
+		this.textSav = params.text;
+		this.time = params.time;
+		this.timeSav = params.time;
+		this.cb = params.cb;
+		this.loop = params.loop;
+		this.active = params.active ?? false;
+		this.timeout = null;
+		this.text = this.genText();
+		this.pack();
+		this.text = this.textSav;
+		if (this.active) 
+			this.start();
 	}
 
 	draw(ctx) {
-		if (!this.active || isNaN(this.time) || /*this.time > 10 ||*/ this.time < 0) return;
-		const tm = drawText(ctx, this.text, this.pText, this.color, this.font);
-		if (this.pTime == null) {
-			this.pTime = {x: this.pText.x+tm.width/2+5, y: this.pText.y, ljust:true};
-		}
-		const text = secondsToString(this.time);
-		drawText(ctx, text, this.pTime, this.color, this.font);
+		if (!this.active || isNaN(this.time) || this.time < 0) return;
+		this.text = this.genText();
+		super.draw(ctx);
+		this.text = this.textSav;
+	}
+
+	genText() {
+		return `${this.text} ${secondsToString(this.time)}`;
 	}
 
 	pause() {
-		if (this.to) {
-			clearTimeout(this.to);
-			this.to = null;
+		if (this.timeout) {
+			clearTimeout(this.timeout);
+			this.timeout = null;
 		}
 	}
 
@@ -569,14 +569,15 @@ class Timer extends Text {
 		this.start(time);
 	}
 
+	// Can be called with no arguments, in which case restart from saved time
 	start(time) {
-		if (this.to) {
-			clearTimeout(this.to);
-			this.to = null;
+		if (this.timeout) {
+			clearTimeout(this.timeout);
+			this.timeout = null;
 		}
 		if (time) {
 			this.time = time;
-		} else if (time < 0 || isNaN(time)) {
+		} else if (time < 0) { 
 			this.time = -1;
 		} else {
 			this.time = this.timeSav;
@@ -593,11 +594,11 @@ class Timer extends Text {
 		this.time--;
 		if (this.time >= 0) {
 			const me = this;
-			this.to = setTimeout(e => me.tick(), 1000);
+			this.timeout = setTimeout(e => me.tick(), 1000);
 		} else {
-			this.to = null;
+			this.timeout = null;
 			this.active = false;
-			if (!isNaN(this.time)) {
+			if (!isNaN(this.time)) { // TODO find out why I put isNaN here
 				this.cb(this);
 				if (this.loop) {
 					this.start(0);
@@ -607,6 +608,6 @@ class Timer extends Text {
 	}
 
 	unpause() {
-		if (this.active && !this.to) this.tick();
+		if (this.active && !this.timeout) this.tick();
 	}
 }
