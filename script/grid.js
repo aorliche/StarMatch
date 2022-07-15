@@ -89,7 +89,7 @@ class HexGrid extends MouseListener {
     
     // Requires valid target
     blast(poly) {
-        const blastCounter = this.main.find('Blasts');
+        const blastCounter = this.game.main.find('Blasts');
         if (blastCounter.count > 0) {
             this.clearSingle(poly);
             this.fall();
