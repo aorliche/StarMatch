@@ -297,8 +297,12 @@ class ImageControl extends Control {
 
 	pack(pass) {
 		if (pass == 1) return;
-		let [w,h] = scaleImage(this.img.width, this.img.height, this.dim.w, this.dim.h);
-		this.dim = {w: w, h: h};
+		if (this.dim.w && this.dim.h) {
+			let [w,h] = scaleImage(this.img.width, this.img.height, this.dim.w, this.dim.h);
+			this.dim = {w: w, h: h};
+		} else {
+			this.dim = {w: this.img.width, h: this.img.height};
+		}
 		/*if (!this.dim.w) this.dim.w = this.img.width;
 		if (!this.dim.h) this.dim.h = this.img.height;*/
 	}
