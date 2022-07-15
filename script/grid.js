@@ -16,8 +16,7 @@ class HexGrid extends MouseListener {
 		this.fixed = [];
 		this.gen = this.makeRandomTypeGenerator(this.ptype, this.layers);
 		this.animator = this.game.animator;
-		this.game.catalog = this.game.catalog;
-		//this.updateScore = updateScoreFn;
+		this.counter = {};
 		// Init grid
 		if (this.ptype == 'tri') {
 			this.center = {x: this.dim.w/2, y: this.dim.h-Math.sqrt(3)/2*(this.layers)*this.size-10};
@@ -90,7 +89,7 @@ class HexGrid extends MouseListener {
     
     // Requires valid target
     blast(poly) {
-        const blastCounter = get(this.game.catalog, 'counters', 'Blasts');
+        const blastCounter = this.main.find('Blasts');
         if (blastCounter.count > 0) {
             this.clearSingle(poly);
             this.fall();
@@ -129,8 +128,8 @@ class HexGrid extends MouseListener {
 				this.clear();
 				this.fall();
 				// We could have won at this point
-				if (this.game.catalog) 
-					this.game.catalog.moves += 1;
+				if (this.game.visible == this.game.main) 
+					this.game.main.find('Moves').count++;
 			}
         // Reselect or deselect if empty
 		} else {
@@ -142,9 +141,9 @@ class HexGrid extends MouseListener {
 	rightClick(p) {
 		const hex = this.findPoly(p);
 		if (hex && !hex.empty && !hex.moving) {
-			if (!hex.frozen && this.game.catalog.getCounter('Freezes').count > 0) {
+			if (!hex.frozen && this.game.main.find('Freezes').count > 0) {
 				hex.frozen = true;
-				this.game.catalog.getCounter('Freezes').count--;
+				this.game.main.find('Freezes').count--;
 			} else if (hex.frozen) {
 				hex.frozen = false;
                 this.clear();
@@ -174,12 +173,14 @@ class HexGrid extends MouseListener {
 
 	clear() {
 		const toClear = this.getThreeInARow();
-        if (toClear.length >= 4) {
-            get(this.game.catalog, 'counters', 'Freezes').count++;
+		const freezes = this.game.main.find('Freezes');
+		const blasts = this.game.main.find('Blasts');
+        if (toClear.length >= 4 && freezes.count != freezes.max) {
+            freezes.count++;
             this.game.notify('Freezes +1');
         }
-        if (toClear.length >= 6) {
-            get(this.game.catalog, 'counters', 'Blasts').count++;
+        if (toClear.length >= 6 && blasts.count != blasts.max) {
+            blasts.count++;
             this.game.notify('Blasts +1');
         }
 		if (toClear.length > 0) {
@@ -188,7 +189,7 @@ class HexGrid extends MouseListener {
 			});
 			this.game.sounds.play('clear', {keep: true});
 		}
-		this.game.catalog.update(this.polys);
+		this.updateAstrons();
 		if (this.polys.filter(p => !p.empty).length == 0) {
 			this.game.winLevel();
 		} else if (!this.solveable()) {
@@ -197,7 +198,7 @@ class HexGrid extends MouseListener {
 	}
     
     clearSingle(hex) {
-        const hole = makePoly(this.ptype, copyPoint(hex.center), this.size, 'empty', this.angle, [...hex.chains]);
+        const hole = makePoly(this.ptype, {...hex.center}, this.size, 'empty', this.angle, [...hex.chains]);
         if (hex == this.selected) {
             this.selected = hole;
         }
@@ -268,8 +269,8 @@ class HexGrid extends MouseListener {
 		const existing = this.polys.filter(hex => !hex.empty);
 		this.gen.update(existing, locs.length);
 		locs.forEach(([loc,p]) => {
-			const hex = makePoly(this.ptype, copyPoint(p), this.size, this.gen.get(), this.angle, loc);
-			if (!first) first = copyPoint(p);
+			const hex = makePoly(this.ptype, {...p}, this.size, this.gen.get(), this.angle, loc);
+			if (!first) first = {...p};
 			addLoc(this.polyMap, loc, hex);
 			this.polys.push(hex);
 			this.animator.restockFromBelow(hex, first);
@@ -317,8 +318,8 @@ class HexGrid extends MouseListener {
 						cur.chains = [...chain[j-1]];
 						addLoc(this.polyMap, [...cur.chains], cur);
 						addLoc(this.polyMap, [...prev.chains], prev);
-						this.animator.fall(prev, copyPoint(cur.center));
-						cur.center = copyPoint(prev.center);
+						this.animator.fall(prev, {...cur.center});
+						cur.center = {...prev.center};
 						changed = true;
 						playSound = true;
 					}
@@ -718,7 +719,7 @@ class HexGrid extends MouseListener {
 				}
 			});
 		} while (n > 0);
-		//this.game.catalog.update(this.polys);
+		this.updateAstrons();
 	}
 
 	initFastChains() {
@@ -845,18 +846,18 @@ class HexGrid extends MouseListener {
 		let nSav = [...n];
 		//shuffleArray(n);
 		const get = function() {
-			const start = Math.floor(Math.random()*types.length);
+			const start = Math.floor(Math.random()*astrons.length);
 			for (let i=0; i<6; i++) {
 				const idx = (i+start)%6;
 				if (n[idx]) {
 					n[idx]--;
-					return types[idx];
+					return astrons[idx];
 				}
 			}
 			throw Error('None left');
 		}
 		const putBack = function(type) {
-			n[types.indexOf(type)]++;
+			n[astrons.indexOf(type)]++;
 		}
 		let hexesSav = null;
 		let nAddSav = null;
@@ -866,7 +867,7 @@ class HexGrid extends MouseListener {
 			n = [0,0,0,0,0,0];
 			const have = [0,0,0,0,0,0];
 			hexes.forEach(hex => {
-				const idx = types.indexOf(hex.type);
+				const idx = astrons.indexOf(hex.type);
 				have[idx]++;
 			});
 			const workingSet = [];
@@ -1001,17 +1002,19 @@ class HexGrid extends MouseListener {
 	}
 
 	scheduleExpand() {
-		const timer = this.game.catalog.getTimer('Tectonic Activity');
+		const timer = this.game.main.find('Tectonic Activity');
 		if (!timer.active || (timer.active && timer.time > 5))
 			timer.start(5);
 	}
 
 	solveable() {
-		let canSolve = false;
-		this.game.catalog.items.forEach(item => {
-			if (item.count != 0 && item.count >= 3) canSolve = true;
-		});
-		return canSolve;
+		for (const astron in this.counter) {
+			if (astron != 'empty') {
+				const count = this.counter[astron];
+				if (count != 0 && count >= 3) return true;
+			}
+		}
+		return false;
 	}
 
 	swap(hex1, hex2) {
@@ -1019,7 +1022,6 @@ class HexGrid extends MouseListener {
 		addLoc(this.polyMap, [...hex1.chains], hex2);
 		[hex1.chains, hex2.chains] = [hex2.chains, hex1.chains];
 		[hex1.center, hex2.center] = [hex2.center, hex1.center];
-		this.game.catalog.getCounter('Moves').count++;
 		this.game.sounds.play('swap', {keep: true});
 	}
 
@@ -1027,10 +1029,18 @@ class HexGrid extends MouseListener {
 		this.polys.forEach(hex => {
 			if (hex.frozen) {
 				hex.frozen = false;
-				this.game.catalog.getCounter('Freezes').count++;
 			}
 		});
 		this.clear();
 		this.fall();
+	}
+
+	updateAstrons() {
+		astrons.concat(['empty']).forEach(a => {
+			this.counter[a] = 0;
+		});
+		this.polys.forEach(p => {
+			this.counter[p.type]++;
+		});
 	}
 }

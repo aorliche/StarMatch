@@ -26,19 +26,6 @@ class Game extends MouseListener {
 	// All mouse actions
 	action(type, p) {
 		this.visible[type](p);
-		/*if (this.level == 0) {
-            if (this.config.visible) 
-                this.config[type](p);
-            else
-                this.title[type](p);
-        } else if (this.config.visible) {
-            this.config[type](p);
-		} else if (this.menu.visible) {
-			this.menu[type](p);
-		} else {
-			this.main[type](p);
-			this.grid[type](p);
-		}*/
 	}
 
 	click(p) {this.action('click', p);}
@@ -55,10 +42,10 @@ class Game extends MouseListener {
 	}
     
     notify(text) {
-        const notice = new Notification({text: text}, this);
+        const notice = new Notification({text: text, fontWeight: 'Bold', color: '#f00'}, this);
         if (this.notifications.length > 0 && 
-            notice.params.pos.y - this.notifications.at(-1).params.pos.y < 25) {
-            notice.params.pos.y = this.notifications.at(-1).params.pos.y + 25;
+            notice.pos.y - this.notifications.at(-1).pos.y < 40) {
+            notice.pos.y = this.notifications.at(-1).pos.y + 40;
         }
         this.notifications.push(notice);
     }
@@ -66,6 +53,7 @@ class Game extends MouseListener {
 	pause() {
 		this.paused = true;		
 		this.main.find('Tectonic Activity').pause();
+		this.main.find('Menu').hovering = false;
 		this.visible = this.menu;
 	}
 
@@ -74,29 +62,6 @@ class Game extends MouseListener {
 		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
 		this.bg.draw(this.ctx);
 		this.visible.draw(this.ctx);
-        /*// Intro and intro config
-		if (this.level == 0) {
-            if (this.config.visible)
-                this.config.draw(this.ctx);
-            else
-                this.title.draw(this.ctx);
-        // Menu or menu config
-		} else if (this.config.visible || this.menu.visible) {
-			this.ctx.save();
-			this.ctx.globalAlpha = 0.7;
-			this.grid.draw(this.ctx);
-			this.main.draw(this.ctx);
-			this.ctx.restore();
-            if (this.config.visible)
-                this.config.draw(this.ctx);
-			else
-                this.menu.draw(this.ctx);
-        // Game
-		} else {
-			this.grid.draw(this.ctx);
-			this.main.draw(this.ctx);
-            this.notifications.forEach(n => n.draw(this.ctx));
-		}*/
 	}
 	
 	requestNextLevel() {
@@ -138,10 +103,11 @@ class Game extends MouseListener {
 		// Button events
 		if (this.pad && this.padState.using) {
 			evt = this.padState.getEvents(this.age);
-			this.grid.pressButtons(evt);
 		}
         // Game running
 		if (this.visible == this.main) {
+			if (evt) 
+				this.grid.pressButtons(evt);
 			// Warning
 			const timer = this.main.find('Tectonic Activity');
 			if (timer && timer.active && timer.time < 5 && timer.time >= 0) {
@@ -164,8 +130,10 @@ class Game extends MouseListener {
 					// always have axes key
                     if (Object.keys(evt).length > 1) 
                         this.newGame();
-                    else if (this.title.enabled && this.padState.anyButton()) 
+                    else if (this.title.enabled && this.padState.anyButton()) {
+						this.config.lock();
 						this.visible = this.config;
+					}
 				}
 			}
 		}
@@ -175,7 +143,7 @@ class Game extends MouseListener {
 	}
 
 	unpause() {
-		this.visible = this.menu;
+		this.visible = this.main;
 		this.paused = false;
 		this.main.find('Tectonic Activity').unpause();
 		this.animator.start();

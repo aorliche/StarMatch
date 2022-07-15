@@ -62,10 +62,8 @@ class HexPoly {
 				let f = 1;
 				if (this instanceof TriPoly) f = 0.4;
 				if (this instanceof SquarePoly) f = 0.6;
+				if (this.type == 'planet') f *= 1.3;
 				let [w,h] = scaleImage(im.width, im.height, this.size*f, this.size*f);
-				if (this.type == 'planet') {
-					w *= 1.2; h *= 1.2;
-				}
 				ctx.drawImage(im, this.center.x-w/2, this.center.y-h/2, w, h);
 			}
 		}

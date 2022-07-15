@@ -1,5 +1,6 @@
 const types = ['star', 'sun', 'planet', 'moon', 'atom', 'galaxy'];
-const typeColors = ['#1a1a39', '#333200', '#3e151e', '#0a2e25', '#3a1b35', '#01263f'];
+const astrons = ['star', 'planet', 'pinkmoon', 'moon', 'sun', 'reddwarf']; 
+const astronColors = ['#1a1a39', '#3e151e', '#3a1b35', '#0a2e25', '#333200', '#01263f'];
 const images = {};
 const iceImgs = [], blastImgs = [];
 
@@ -194,9 +195,10 @@ window.addEventListener('load', e => {
 	}
 
 	// Load images
+	// 6 astrons, 2 assets, 3 ice, 1 blast, 24 astron characters
 	let numLoaded = 0;
 	function loadFn() {
-		if (++numLoaded == 6+2+3+1) {
+		if (++numLoaded == 6+2+3+1+24) {
 			game = new Game(canvas, updatePage);
             deferred.game = game;
 			setParams();
@@ -205,10 +207,18 @@ window.addEventListener('load', e => {
 		}
 	}
 
-	types.forEach(t => {
+	astrons.forEach(t => {
 		images[t] = new Image();
 		images[t].addEventListener('load', loadFn);
-		images[t].src = `Images/${t}.png`;
+		images[t].src = `Images/Astrons/${t}.png`;
+		
+		const ta = `${t}_a`;
+		images[ta] = [];
+		[0,1,2,3].forEach(i => {
+			images[ta].push(new Image());
+			images[ta].at(-1).addEventListener('load', loadFn);
+			images[ta].at(-1).src = `Images/Astrons/${t}_a${i}.png`;
+		});
 	});
 
 	['Images/Assets/DragonTitle.png', 'Images/Assets/controller.png'].forEach(t => {

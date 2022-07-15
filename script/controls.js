@@ -37,9 +37,9 @@ class Control extends MouseListener {
 	draw(ctx) {}
 
 	find(name) {
-		if (this.name && this.name == name) 
-			return this;
-		else if (this.text && this.text == name) 
+		if (this.name) {
+			return this.name == name ? this : null;
+		} else if (this.text && this.text == name) 
 			return this;
 		else if (this.text && this.text.text && this.text.text == name)
 			return this;
@@ -239,7 +239,7 @@ class Button extends Control {
 
 	click(p) {
 		if (this.disabled) return;
-		if (this.contains(p))
+		if (!p || this.contains(p))
 			this.cb();
 	}
 
@@ -297,7 +297,10 @@ class ImageControl extends Control {
 
 	pack(pass) {
 		if (pass == 1) return;
-		if (!this.dim.w || !this.dim.w) this.dim = {w: this.img.width, h: this.img.height};
+		let [w,h] = scaleImage(this.img.width, this.img.height, this.dim.w, this.dim.h);
+		this.dim = {w: w, h: h};
+		/*if (!this.dim.w) this.dim.w = this.img.width;
+		if (!this.dim.h) this.dim.h = this.img.height;*/
 	}
 }
 
@@ -306,6 +309,7 @@ class Astron extends ImageControl {
         super(params);
 		this.type = params.type;
 		this.flamed = params.flamed ?? [];
+		this.count = params.count ?? 0;
 	}
 }
 
@@ -387,12 +391,12 @@ class PadConfigButton extends Button {
     }
 
 	click(p) {
-		if (!this.contains(p)) return;
+		if (p && !this.contains(p)) return;
 		if (this.config) 
 			this.config.fields.forEach(f => f.selected = false);
 		this.selected = !this.selected;
 		if (this.selected) {
-			this.config.fieldIdx = this.fields.indexOf(this);
+			this.config.fieldIdx = this.config.fields.indexOf(this);
 		}
 	}
 

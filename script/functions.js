@@ -17,7 +17,7 @@ function randomInt(min, max) {
 }
 
 function getTypeColor(type) {
-	return typeColors[types.indexOf(type)];
+	return astronColors[astrons.indexOf(type)];
 }
 
 function getCursorPosition(canvas, e) {
