@@ -7,10 +7,23 @@ body {
     color: #fff;
 }
 
+#hidden .a {
+	font-family: 'Anger Styles';
+}
+
+#hidden .b {
+	font-family: 'Conthrax';
+}
+
+#hidden .c {
+	font-family: 'Bahnschrift';
+}
+
 label {
 	display: inline-block;
 	width: 120px;
 }
+
 input[type=text] {
 	width: 80px;
 }

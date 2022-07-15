@@ -5,26 +5,28 @@ class Game extends MouseListener {
 		this.canvas = canvas;
 		this.dim = {w: canvas.width, h: canvas.height};
 		this.ctx = canvas.getContext('2d');
-        this.main = new MainScreen(this);
 		this.menu = new MenuScreen(this);
+        this.main = new MainScreen(this); // requires menu non-null
         this.config = new PadConfigScreen(this);
 		this.title = new TitleScreen(this);
 		this.grid = null;
 		this.animator = new Animator(this);
 		this.paused = true;
 		this.updatePage = updatePage;
-		this.bg = new StarField(this.dim); // TODO dim
+		this.bg = new StarField(this.dim);
 		this.sounds = new Sounds(this);
 		this.animator.start();
 		this.padState = new GamepadState(this);
 		this.age = 0;
-        this.notifications = [];
         this.sounds.playMusic('intro');
+		this.visible = this.title;
+        this.notifications = [];
 	}
 
 	// All mouse actions
 	action(type, p) {
-		if (this.level == 0) {
+		this.visible[type](p);
+		/*if (this.level == 0) {
             if (this.config.visible) 
                 this.config[type](p);
             else
@@ -36,7 +38,7 @@ class Game extends MouseListener {
 		} else {
 			this.main[type](p);
 			this.grid[type](p);
-		}
+		}*/
 	}
 
 	click(p) {this.action('click', p);}
@@ -53,7 +55,7 @@ class Game extends MouseListener {
 	}
     
     notify(text) {
-        const notice = new Notification(this, {text: text});
+        const notice = new Notification({text: text}, this);
         if (this.notifications.length > 0 && 
             notice.params.pos.y - this.notifications.at(-1).params.pos.y < 25) {
             notice.params.pos.y = this.notifications.at(-1).params.pos.y + 25;
@@ -63,14 +65,16 @@ class Game extends MouseListener {
 
 	pause() {
 		this.paused = true;		
-		this.main.getTimer('Tectonic Activity').pause();
+		this.main.find('Tectonic Activity').pause();
+		this.visible = this.menu;
 	}
 
 	repaint() {
 		this.ctx.fillStyle = '#000';
 		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
 		this.bg.draw(this.ctx);
-        // Intro and intro config
+		this.visible.draw(this.ctx);
+        /*// Intro and intro config
 		if (this.level == 0) {
             if (this.config.visible)
                 this.config.draw(this.ctx);
@@ -92,7 +96,7 @@ class Game extends MouseListener {
 			this.grid.draw(this.ctx);
 			this.main.draw(this.ctx);
             this.notifications.forEach(n => n.draw(this.ctx));
-		}
+		}*/
 	}
 	
 	requestNextLevel() {
@@ -102,23 +106,22 @@ class Game extends MouseListener {
 	startLevel(level) {
 		this.level = level;
 		if (this.level == 1) {
-			this.main.getButton('Menu').cb = () => this.showMenu();
-            this.main.getCounter('Freezes').count = 3;
+			this.main.resetPowerups();
 		}
 		this.animator.gridInfos = [];
-		this.main.getCounter('Level').count = this.level;
-		this.main.getButton('Unfreeze All').cb = () => this.grid.unfreeze();
-		this.main.getTimer('Tectonic Activity').setAndStart(parseInt(get(this.menu, 'sliders', 'Tectonic Activity').value));
+		this.main.find('Level').count = this.level;
+		this.main.find('Tectonic Activity').setAndStart(parseInt(this.menu.find('Tectonic Activity').value));
 		this.grid = new HexGrid(this);
 		this.unpause();
 	}
 
 	showMenu() {
 		this.pause();
-		this.menu.visible = true;
 	}
 
+	// For button events, tectonic activity warnings, notifications, and background ticks
 	tick() {
+		let evt = null;
 		this.age++;
         this.pad = null;
         // Chrome generates new Gamepad objects every action
@@ -132,35 +135,37 @@ class Game extends MouseListener {
         if (this.pad && !this.padState.using && this.padState.anyButtonOrAxis()) {
             this.padState.using = true;
         }
+		// Button events
+		if (this.pad && this.padState.using) {
+			evt = this.padState.getEvents(this.age);
+			this.grid.pressButtons(evt);
+		}
         // Game running
-		if (!this.paused) {
-			const timer = this.catalog.getTimer('Tectonic Activity');
+		if (this.visible == this.main) {
+			// Warning
+			const timer = this.main.find('Tectonic Activity');
 			if (timer && timer.active && timer.time < 5 && timer.time >= 0) {
  				if (!this.sounds.playing('warning')) 
 					this.sounds.play('warning');
 			} else {
 				this.sounds.stop('warning');
 			}
-			if (this.pad) {
-				const evt = this.padState.getEvents(this.age);
-				this.grid.pressButtons(evt);
-			}
         // Intro, menu, config, or animation
 		} else {
 			this.sounds.stop('warning');
-			if (this.pad) {
-				const evt = this.padState.getEvents(this.age);
-				if (this.menu.visible) {
-					if (evt.Start) {
+			if (evt) {
+				if (this.visible == this.menu) {
+					if (evt.Start)
 						this.unpause();
-					}
-                } else if (this.config.visible) {
+                } else if (this.visible == this.config) {
                     this.config.capture(this.pad);
-				} else if (this.level == 0) {
-                    if (Object.keys(evt).length > 1) // always have axes key
+				} else if (this.visible == this.title) {
+					// Already have key map
+					// always have axes key
+                    if (Object.keys(evt).length > 1) 
                         this.newGame();
                     else if (this.title.enabled && this.padState.anyButton()) 
-						this.config.visible = true;
+						this.visible = this.config;
 				}
 			}
 		}
@@ -170,26 +175,24 @@ class Game extends MouseListener {
 	}
 
 	unpause() {
-		this.menu.visible = false;
+		this.visible = this.menu;
 		this.paused = false;
-		this.catalog.getTimer('Tectonic Activity').unpause();
+		this.main.find('Tectonic Activity').unpause();
 		this.animator.start();
 	}
 
 	winLevel() {
 		this.grid.selected = null;
 		this.animator.gridInfos = [];
-		this.catalog.getTimer('Tectonic Activity').start();
+		this.main.find('Tectonic Activity').start();
 		this.sounds.stopAll();
 		this.sounds.play('winlevel');
 		if (this.level < 9) {
 			setTimeout(e => this.requestNextLevel(), 500);
 		} else {
-			this.catalog = null;
 			this.animator.infos = [];
 			this.paused = true;
 			this.level = 0;
-			//this.repaint();
 		}
 	}
 }

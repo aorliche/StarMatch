@@ -32,8 +32,7 @@ class Sounds {
 		}
 		const audio = new Audio(url);
 		this.music[name] = this.ctx.createMediaElementSource(audio);
-		this.music[name].mediaElement.volume = 
-			get(this.game.menu, 'sliders', 'Music Volume').value;
+		this.music[name].mediaElement.volume = this.game.menu.find('Music Volume').value;
 		this.music[name].connect(this.ctx.destination);
 	}
 
@@ -107,8 +106,8 @@ class Sounds {
 	}
 
 	updateGain() {
-		const sg = get(this.game.menu, 'sliders', 'Sound Effects Volume').value;
-		const mg = get(this.game.menu, 'sliders', 'Music Volume').value;
+		const sg = this.game.menu.find('Sound Effects Volume').value;
+		const mg = this.game.menu.find('Music Volume').value;
 		console.log(sg);
 		this.soundGainNode.gain.setValueAtTime(sg, this.ctx.currentTime);
 		for (const name in this.music) {

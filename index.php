@@ -27,8 +27,8 @@
 	const music = <?= array_to_js_object($music) ?>;
 </script>
 <script src='script/lib/pSBC.js?nocache=<?= uniqid(); ?>'></script>
-<script src='script/controls.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/mouse.js?nocache=<?= uniqid(); ?>'></script>
+<script src='script/controls.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/sounds.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/game.js?nocache=<?= uniqid(); ?>'></script>
 <script src='script/functions.js?nocache=<?= uniqid(); ?>'></script>
@@ -44,7 +44,10 @@
 </head>
 <body>
 <div style='text-align: center;'>
-<canvas style='margin: 0 auto;' id='game' width='500' height='600'></canvas>
+<canvas style='margin: 0 auto;' id='game' width='1280' height='720'></canvas>
+</div>
+<div>
+<a href='#' id='hideUnhide' style='color: #ddd;'>Hide/Reveal Interface</a>
 </div>
 <div style='float: left; margin-left: 20px; display: none;'>
 	<p>Score: <span id='score'>0</span></p>
@@ -110,7 +113,7 @@
 	<button id='playLevels'>Play Levels</button>
 </div>
 <!--<div style='float: left; margin-left: 20px;'>-->
-<div>
+<div id='soundsDiv' style='visibility: hidden;'>
 	<p><strong>Sounds</strong></p>
 <?php
 	foreach ($sounds as $sound => $default) {
@@ -136,6 +139,11 @@
 	<p><Strong>Gamepad Instructions</strong></p>
 	<p>Arrows: move, A: toggle move selected, B: freeze/unfreeze, X: Blast, Y: unfreeze all, LB/RB: favor side on hex board, LB+RB tectonic activity now!, Start: menu and new game (title screen).</p>
 	<p>No gamepad controls in menu yet.</p>
+</div>
+<div id='hidden'>
+	<div class='a'>Hello</div>
+	<div class='b'>Playing around</div>
+	<div class='c'>With getting fonts to load</div>
 </div>
 </body>
 </html>

@@ -19,6 +19,7 @@ class Control extends MouseListener {
 		} else {
 			this.margin = {top: 0, right: 0, bottom: 0, left: 0};
 		}
+		this.name = params.name ?? null;
     }
     
     contains(p, noupdate) {
@@ -34,6 +35,16 @@ class Control extends MouseListener {
     }
 
 	draw(ctx) {}
+
+	find(name) {
+		if (this.name && this.name == name) 
+			return this;
+		else if (this.text && this.text == name) 
+			return this;
+		else if (this.text && this.text.text && this.text.text == name)
+			return this;
+		return null;
+	}
 }
 
 class Text extends Control {
@@ -41,15 +52,17 @@ class Text extends Control {
 	constructor(params, ctx) {
 		super(params);
 		this.text = params.text;
-		this.color = params.color ?? 'red';
+		this.color = params.color ?? '#ddd';
 		this.fontFamily = params.fontFamily ?? fontFamily3;
 		this.fontSize = params.fontSize ?? 16;
 		this.fontWeight = params.fontWeight ?? '';
 		this.ctx = ctx;
 		this.pack();
+		this.disabled = params.disabled;
 	}
 
 	draw(ctx) {
+		if (this.disabled) return;
 		const p = {x: this.pos.x, y: this.pos.y+this.ascent};
 		ctx.font = this.font;
 		ctx.fillStyle = this.color;
@@ -57,7 +70,7 @@ class Text extends Control {
 	}
 
 	get font() {
-		return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, Sans-Serif`;
+		return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, sans-serif`;
 	}
 
 	pack(pass) {
@@ -105,6 +118,16 @@ class Box extends Control {
 				this.dim.h + this.margin.top + this.margin.bottom);
 		}
 	}
+
+	// Some Boxes are ImageCounters, Sliders, etc.
+	find(name) {
+		if (this.name == name || (this.text && this.text.text == name)) return this;
+		for (let i=0; i<this.children.length; i++) {
+			const res = this.children[i].find(name);
+			if (res) return res;
+		}
+		return false;
+	}
  
  	// pass == 0: set dims of self and children
 	// pass == 1: set postion of children (parent sets your pos)
@@ -143,7 +166,7 @@ class Box extends Control {
 				if (pass == 1) {
 					c.pos = {x: this.pos.x + w, y: this.pos.y};
 					if (this.align == 'center') 
-						c.pos.y += h/2 - c.dim.h/2;
+						c.pos.y += this.dim.h/2 - c.dim.h/2;
 					else
 						c.pos.y += maxTm;
 				}
@@ -153,7 +176,7 @@ class Box extends Control {
 				if (pass == 1) {
 					c.pos = {x: this.pos.x, y: this.pos.y + h};
 					if (this.align == 'center')
-						c.pos.x += w/2 - c.dim.w/2;
+						c.pos.x += this.dim.w/2 - c.dim.w/2;
 					else
 						c.pos.x += maxLm;
 				}
@@ -205,19 +228,23 @@ class Button extends Control {
 		params.dim = null; // Text dim auto-calculated anyway
 		params.margin = null; // Margin on text not the same as margin on button
 		this.text = new Text(params, ctx);
+		this.text.disabled = false;
 		this.text.fontWeight == params.fontWeight ?? 'Bold';
 		this.color = params.color ?? '#ddd';
 		this.hoverColor = params.hoverColor ?? '#722';
 		this.cb = params.cb;
 		this.hovering = false;
+		this.disabled = params.disabled;
 	}
 
 	click(p) {
+		if (this.disabled) return;
 		if (this.contains(p))
 			this.cb();
 	}
 
 	draw(ctx, hover) {
+		if (this.disabled) return;
 		ctx.strokeStyle = '#4a4a4a';
 		ctx.lineWidth = 3;
 		if (this.hovering) {
@@ -270,7 +297,7 @@ class ImageControl extends Control {
 
 	pack(pass) {
 		if (pass == 1) return;
-		if (!this.dim.x || !this.dim.y) this.dim = {w: this.img.width, h: this.img.height};
+		if (!this.dim.w || !this.dim.w) this.dim = {w: this.img.width, h: this.img.height};
 	}
 }
 
@@ -326,8 +353,8 @@ class PadConfigButton extends Button {
 		this.hoverColor = params.hoverColor ?? '#518089';
 		this.setColor = params.setColor ?? '#ddd';
 		this.setHoverColor = params.setHoverColor ?? '#292';
-		this.name = params.name ?? params.text;
         this.config = config;
+		this.name = params.name ?? params.text;
     }
     
     capture(pad) {
@@ -362,8 +389,11 @@ class PadConfigButton extends Button {
 	click(p) {
 		if (!this.contains(p)) return;
 		if (this.config) 
-			this.config.buttons.forEach(b => b.selected = false);
+			this.config.fields.forEach(f => f.selected = false);
 		this.selected = !this.selected;
+		if (this.selected) {
+			this.config.fieldIdx = this.fields.indexOf(this);
+		}
 	}
 
 	draw(ctx) {
@@ -515,6 +545,10 @@ class Slider extends HBox {
 		this.align = 'center';
 	}
 
+	get value() {
+		return this.labels[this.bar.index];
+	}
+
 	mousedown(p) {
 		this.bar.mousedown(p);
 	}
@@ -570,6 +604,7 @@ class Timer extends Text {
 	}
 
 	// Can be called with no arguments, in which case restart from saved time
+	// Can also be called with 'off', in which case stop
 	start(time) {
 		if (this.timeout) {
 			clearTimeout(this.timeout);
@@ -577,7 +612,7 @@ class Timer extends Text {
 		}
 		if (time) {
 			this.time = time;
-		} else if (time < 0) { 
+		} else if (time < 0 || isNaN(time)) { 
 			this.time = -1;
 		} else {
 			this.time = this.timeSav;

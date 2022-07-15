@@ -167,7 +167,7 @@ function secondsToString(sec) {
 	return `${min}:${pad}${sec}`;
 }
 
-function get(obj, prop, text) {
+/*function get(obj, prop, text) {
 	let found = null;
 	text = text.toLowerCase();
 	obj[prop].forEach(elt => {
@@ -175,7 +175,7 @@ function get(obj, prop, text) {
 			found = elt;
 	});
 	return found;
-}
+}*/
 
 function argmin(arr) {
 	let min = 0;
@@ -224,4 +224,8 @@ function drawLine(ctx, from, to, color, width) {
 
 function addPoints(a, b) {
     return {x: a.x+b.x, y: a.y+b.y};
+}
+
+function basename(path) {
+	return path.split(/[\\/]/).pop().split(/\./)[0]
 }

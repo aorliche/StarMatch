@@ -1,8 +1,9 @@
 const types = ['star', 'sun', 'planet', 'moon', 'atom', 'galaxy'];
 const typeColors = ['#1a1a39', '#333200', '#3e151e', '#0a2e25', '#3a1b35', '#01263f'];
-const images = [];
+const images = {};
+const iceImgs = [], blastImgs = [];
 
-const fontFamily1 = 'Anger-Styles';
+const fontFamily1 = 'Anger Styles';
 const fontFamily2 = 'Conthrax';
 const fontFamily3 = 'Bahnschrift';
 
@@ -30,7 +31,20 @@ window.addEventListener('load', e => {
 	const swapTileSoundSpan = document.querySelector('#swapTileSoundSpan');
 	const canvas = document.querySelector('#game');
 	const ctx = canvas.getContext('2d');
+	const hideUnhide = document.querySelector('#hideUnhide');
+	const soundsDiv = document.querySelector('#soundsDiv');
 	//let circles = [];
+
+	hideUnhide.addEventListener('click', e => {
+		e.preventDefault();
+		if (soundsDiv.vis) {
+			soundsDiv.style.visibility = 'hidden';
+			soundsDiv.vis = false;
+		} else {
+			soundsDiv.style.visibility = 'visible';
+			soundsDiv.vis = true;
+		}
+	});
 	
 	function setParams() {
 		const params = {
@@ -182,7 +196,7 @@ window.addEventListener('load', e => {
 	// Load images
 	let numLoaded = 0;
 	function loadFn() {
-		if (++numLoaded == 6) {
+		if (++numLoaded == 6+2+3+1) {
 			game = new Game(canvas, updatePage);
             deferred.game = game;
 			setParams();
@@ -191,10 +205,31 @@ window.addEventListener('load', e => {
 		}
 	}
 
-	types.map(t => {
-		images[t] = new Image;
+	types.forEach(t => {
+		images[t] = new Image();
 		images[t].addEventListener('load', loadFn);
 		images[t].src = `Images/${t}.png`;
+	});
+
+	['Images/Assets/DragonTitle.png', 'Images/Assets/controller.png'].forEach(t => {
+		const key = basename(t);
+		images[key] = new Image();
+		images[key].addEventListener('load', loadFn);
+		images[key].src = t;
+	});
+
+	[0,1,2].forEach(t => {
+		const key = `Images/Counters/ice${t}.png`;
+		iceImgs.push(new Image());
+		iceImgs.at(-1).addEventListener('load', loadFn);
+		iceImgs.at(-1).src = key;
+	});
+	
+	[0].forEach(t => {
+		const key = `Images/Counters/blast${t}.png`;
+		blastImgs.push(new Image());
+		blastImgs.at(-1).addEventListener('load', loadFn);
+		blastImgs.at(-1).src = key;
 	});
 
 	triLevel.selectedIndex = 1;

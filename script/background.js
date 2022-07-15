@@ -1,7 +1,7 @@
 
 class StarField {
 	constructor(dim) {
-		this.dim = dim;
+		this.dim = {...dim};
 		this.stars = [];
 		for (let i=0; i<200; i++) {
 			this.stars.push({x: randomInt(0, dim.w), y: randomInt(0, dim.h), age: randomInt(0, 300)});

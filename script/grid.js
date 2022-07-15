@@ -37,7 +37,7 @@ class HexGrid extends MouseListener {
 		// Build board and poly map
 		let count = 0;
 		for (let loc of this.getLocations()) {
-			const hex = makePoly(this.ptype, copyPoint(loc[0]), this.size, this.gen.get(), this.angle, [...loc[1]]);
+			const hex = makePoly(this.ptype, {...loc[0]}, this.size, this.gen.get(), this.angle, [...loc[1]]);
 			this.polys.push(hex);
 			hex.id = count++;
 			addLoc(this.polyMap, loc[1], hex);
@@ -718,7 +718,7 @@ class HexGrid extends MouseListener {
 				}
 			});
 		} while (n > 0);
-		this.game.catalog.update(this.polys);
+		//this.game.catalog.update(this.polys);
 	}
 
 	initFastChains() {
