@@ -195,10 +195,10 @@ window.addEventListener('load', e => {
 	}
 
 	// Load images
-	// 6 astrons, 2 assets, 3 ice, 1 blast, 24 astron characters
+	// 6 astrons, 2 assets, 3 ice, 1 blast, 24 astron characters, 2 dragon heads
 	let numLoaded = 0;
 	function loadFn() {
-		if (++numLoaded == 6+2+3+1+24) {
+		if (++numLoaded == 6+2+3+1+24+2) {
 			game = new Game(canvas, updatePage);
             deferred.game = game;
 			setParams();
@@ -221,7 +221,8 @@ window.addEventListener('load', e => {
 		});
 	});
 
-	['Images/Assets/DragonTitle.png', 'Images/Assets/controller.png'].forEach(t => {
+	['Images/Assets/DragonTitle.png', 'Images/Assets/controller.png', 'Images/Assets/dragonHead.png',
+	'Images/Assets/dragonHeadFire.png'].forEach(t => {
 		const key = basename(t);
 		images[key] = new Image();
 		images[key].addEventListener('load', loadFn);

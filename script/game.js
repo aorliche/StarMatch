@@ -21,6 +21,8 @@ class Game extends MouseListener {
         this.sounds.playMusic('intro');
 		this.visible = this.title;
         this.notifications = [];
+		this.gridDim = {w: this.dim.w-440, h: this.dim.h-100};
+		this.gridPos = {x: 220, y: 100};
 	}
 
 	// All mouse actions
@@ -37,6 +39,9 @@ class Game extends MouseListener {
 
 	newGame() {
 		this.level = 0;
+		const moves = this.main.find('Moves');
+		moves.count = 0;
+		moves.parent.packAll();
 		this.requestNextLevel();
 		this.sounds.playMusic('game');
 	}
@@ -76,7 +81,7 @@ class Game extends MouseListener {
 		this.animator.gridInfos = [];
 		this.main.find('Level').count = this.level;
 		this.main.find('Tectonic Activity').setAndStart(parseInt(this.menu.find('Tectonic Activity').value));
-		this.grid = new HexGrid(this);
+		this.grid = new HexGrid(this, this.gridDim);
 		this.unpause();
 	}
 
@@ -140,6 +145,8 @@ class Game extends MouseListener {
         // Housekeeping
         this.notifications.forEach(n => n.tick());
 		this.bg.tick();
+		if (this.visible.tick)
+			this.visible.tick();
 	}
 
 	unpause() {

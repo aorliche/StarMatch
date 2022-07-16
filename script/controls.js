@@ -20,6 +20,8 @@ class Control extends MouseListener {
 			this.margin = {top: 0, right: 0, bottom: 0, left: 0};
 		}
 		this.name = params.name ?? null;
+		this.bgColor = params.bgColor ?? null;
+		this.bgAlpha = params.bgAlpha ?? null;
     }
     
     contains(p, noupdate) {
@@ -33,8 +35,6 @@ class Control extends MouseListener {
 		}
 		return yes;
     }
-
-	draw(ctx) {}
 
 	find(name) {
 		if (this.name) {
@@ -58,11 +58,9 @@ class Text extends Control {
 		this.fontWeight = params.fontWeight ?? '';
 		this.ctx = ctx;
 		this.pack();
-		this.disabled = params.disabled;
 	}
 
 	draw(ctx) {
-		if (this.disabled) return;
 		const p = {x: this.pos.x, y: this.pos.y+this.ascent};
 		ctx.font = this.font;
 		ctx.fillStyle = this.color;
@@ -109,6 +107,13 @@ class Box extends Control {
     }
 
 	draw(ctx, debug) {
+		if (this.bgColor) {
+			if (this.bgAlpha) 
+				ctx.globalAlpha = this.bgAlpha;
+			ctx.fillStyle = this.bgColor;
+			ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+			ctx.globalAlpha = 1;
+		}
 		this.children.forEach(c => c.draw(ctx, debug));
 		if (debug) {
 			ctx.lineWidth = 1;
@@ -228,25 +233,21 @@ class Button extends Control {
 		params.dim = null; // Text dim auto-calculated anyway
 		params.margin = null; // Margin on text not the same as margin on button
 		this.text = new Text(params, ctx);
-		this.text.disabled = false;
 		this.text.fontWeight == params.fontWeight ?? 'Bold';
 		this.color = params.color ?? '#ddd';
 		this.hoverColor = params.hoverColor ?? '#722';
+		this.lineWidth = params.lineWidth ?? 3;
+		this.fill = params.fill ?? true;
 		this.cb = params.cb;
 		this.hovering = false;
-		this.disabled = params.disabled;
 	}
 
 	click(p) {
-		if (this.disabled) return;
 		if (!p || this.contains(p))
 			this.cb();
 	}
 
 	draw(ctx, hover) {
-		if (this.disabled) return;
-		ctx.strokeStyle = '#4a4a4a';
-		ctx.lineWidth = 3;
 		if (this.hovering) {
 			ctx.fillStyle = this.color;
 			this.text.color = this.hoverColor;
@@ -254,8 +255,13 @@ class Button extends Control {
 			ctx.fillStyle = this.hoverColor;
 			this.text.color = this.color;
 		}
-		ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
-		ctx.strokeRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+		if (this.fill)
+			ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+		if (this.lineWidth > 0) {
+			ctx.strokeStyle = '#4a4a4a';
+			ctx.lineWidth = this.lineWidth;
+			ctx.strokeRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+		}
 		this.text.draw(ctx);
 	}
 
@@ -270,9 +276,9 @@ class Button extends Control {
 	pack() {
 		// Pass 0
 		this.text.pack();
-		if (!this.dim.x || !this.dim.y) {
-			this.dim.x = this.text.dim.x + this.text.margin.left + this.text.margin.right;
-			this.dim.y = this.text.dim.y + this.text.margin.top + this.text.margin.bottom;
+		if (!this.dim.w || !this.dim.h) {
+			this.dim.w = this.text.dim.w + this.text.margin.left + this.text.margin.right;
+			this.dim.h = this.text.dim.h + this.text.margin.top + this.text.margin.bottom;
 		}
 		// Pass 1
 		if (this.pos) {
@@ -288,9 +294,16 @@ class ImageControl extends Control {
 	constructor(params) {
 		super(params);
 		this.img = params.img;
+		this.bgColor = params.bgColor;
+		this.borderColor = params.borderColor;
+		this.lineWidth = params.lineWidth;
 	}
 
 	draw(ctx) {
+		if (this.bgColor) {
+			ctx.fillStyle = this.bgColor;
+			ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+		}
 		let [w,h] = scaleImage(this.img.width, this.img.height, this.dim.w, this.dim.h);
 		ctx.drawImage(this.img, this.pos.x, this.pos.y, w, h);
 	}
@@ -312,8 +325,23 @@ class Astron extends ImageControl {
 	constructor(params) {
         super(params);
 		this.type = params.type;
+		this.name = params.type;
 		this.flamed = params.flamed ?? [];
 		this.count = params.count ?? 0;
+		this.timeout = null;
+	}
+
+	flame() {
+		if (this.timeout) clearTimeout(this.timeout);
+		this.img = this.flamed[1];
+		this.timeout = setTimeout(e => this.post(), 1000);
+	}
+
+	post() {
+		const idx = (this.flamed.indexOf(this.img)+1)%this.flamed.length;
+		this.img = this.flamed[idx];
+		if (idx != 0) 
+			this.timeout = setTimeout(e => this.post(), 1000);
 	}
 }
 
@@ -531,6 +559,7 @@ class Slider extends HBox {
 		this.text = new Text(params, ctx);
 		this.text.pack();
 		this.cb = params.cb;
+		this.center = params.center ?? false;
 		params.spacing = params.spacing ?? 20;
 		this.bar = new SliderBar({
 			dim: {w: params.barw ?? 100, h: params.barh ?? 15}, 
@@ -542,7 +571,7 @@ class Slider extends HBox {
 				this.children[2].text = this.labels[idx];
 				if (this.cb) this.cb(this.labels[idx]);
 			},
-			color: params.color
+			color: params.barColor ?? params.color
 		});
 		this.labels = params.labels;
 		this.label = new Text({...params, text: this.labels[this.bar.index]}, ctx);
@@ -550,7 +579,6 @@ class Slider extends HBox {
 		this.add(this.text);
 		this.add(this.bar);
 		this.add(this.label);
-		this.align = 'center';
 	}
 
 	get value() {
@@ -564,6 +592,21 @@ class Slider extends HBox {
 	mouseout() {
 		this.bar.hovering = false;
 		this.bar.selected = false;
+	}
+
+	pack(pass) {
+		if (this.center) {
+			const left = this.bar.margin.left + this.text.dim.w + this.text.margin.left;
+			const right = this.bar.dim.w + this.bar.margin.right + this.label.dim.w + this.label.margin.right;
+			if (left > right)
+				this.label.margin.right = left-right;
+			else
+				this.text.margin.left = right-left;
+		}
+		super.pack(pass);
+		if (pass == 1) {
+			this.bar.pos.y += this.text.dim.h - this.bar.dim.h + 2;
+		}
 	}
 }
 
@@ -593,6 +636,12 @@ class Timer extends Text {
 
 	genText() {
 		return `${this.text} ${secondsToString(this.time)}`;
+	}
+
+	pack() {
+		this.text = this.genText();
+		super.pack();
+		this.text = this.textSav;
 	}
 
 	pause() {
@@ -648,6 +697,7 @@ class Timer extends Text {
 				}
 			}
 		}
+		this.parent.packAll();
 	}
 
 	unpause() {

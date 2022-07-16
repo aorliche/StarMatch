@@ -1,11 +1,12 @@
 class HexPoly {
-	constructor(center, size, type, angle, chains) {
+	constructor(center, size, type, angle, chains, params) {
 		this.c = center;
 		this.type = type;
 		if (type == 'empty') this.empty = true;
 		this.angle = angle;
 		this.chains = chains;
 		this.resize(size);
+		this.params = this.params ?? {};
 	}
 
 	adjacentTo(hex) {
@@ -29,8 +30,15 @@ class HexPoly {
 	}
 
 	draw(ctx, hl) {
-		ctx.fillStyle = getTypeColor(this.type);
-		ctx.strokeStyle = '#4a4a4a';
+		if (this.type == 'graphic') {
+			ctx.fillStyle = this.params.color ?? '#4a4a4a';
+			ctx.strokeStyle = this.params.strokeStyle ?? '#4a4a4a';
+			ctx.lineWidth = this.params.lineWidth ?? 0;
+		} else {
+			ctx.fillStyle = getTypeColor(this.type);
+			ctx.strokeStyle = '#4a4a4a';
+			ctx.lineWidth = (this instanceof TriPoly || this instanceof SquarePoly) ? 3 : 5;
+		}
 		if (this.frozen) ctx.fillStyle = pSBC(0.2, ctx.fillStyle, '#aaa');
 		if (this.moving) ctx.strokeStyle = pSBC(0.5, ctx.strokeStyle);
 		if (this.fixed && hl == 'outline') ctx.strokeStyle = pSBC(0.2, ctx.strokeStyle);
@@ -41,7 +49,6 @@ class HexPoly {
             ctx.setLineDash([5, 5]);
         }
 		if (hl && !isNaN(hl)) ctx.strokeStyle = pSBC(0.5, ctx.strokeStyle);
-		ctx.lineWidth = (this instanceof TriPoly || this instanceof SquarePoly) ? 3 : 5;
 		ctx.beginPath();
 		const start = this.points[0];
 		ctx.moveTo(start.x, start.y);

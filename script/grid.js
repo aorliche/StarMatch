@@ -1,7 +1,7 @@
 // TODO worst case code about tiles getting stuck in weird positions
 
 class HexGrid extends MouseListener {
-	constructor(game) { 
+	constructor(game, dim) { 
 		super();
 		this.swapping = false;
 		this.game = game;
@@ -9,7 +9,7 @@ class HexGrid extends MouseListener {
 		this.size = game.params.size;
 		this.layers = game.params.layers;
 		this.angle = game.params.angle;
-		this.dim = game.dim;
+		this.dim = dim;
 		this.polys = [];
 		this.polyMap = [];
 		this.clearing = [];
@@ -128,8 +128,11 @@ class HexGrid extends MouseListener {
 				this.clear();
 				this.fall();
 				// We could have won at this point
-				if (this.game.visible == this.game.main) 
-					this.game.main.find('Moves').count++;
+				if (this.game.visible == this.game.main) {
+					const moves = this.game.main.find('Moves');
+					moves.count++;
+					moves.parent.packAll();
+				}
 			}
         // Reselect or deselect if empty
 		} else {
@@ -184,15 +187,20 @@ class HexGrid extends MouseListener {
             this.game.notify('Blasts +1');
         }
 		if (toClear.length > 0) {
+			const types = new Set();
 			toClear.forEach(hex => {
-				this.clearSingle(hex)
+				this.clearSingle(hex);
+				types.add(hex.type);
 			});
 			this.game.sounds.play('clear', {keep: true});
+			this.game.main.flame([...types]);
+			this.updateAstrons();
+			if (this.polys.filter(p => !p.empty).length == 0) {
+				this.game.winLevel();
+			} 
 		}
-		this.updateAstrons();
-		if (this.polys.filter(p => !p.empty).length == 0) {
-			this.game.winLevel();
-		} else if (!this.solveable()) {
+		// Called in animator, allows double expand due to unsolveability
+		if (!this.solveable()) {
 			this.scheduleExpand();
 		}
 	}
@@ -234,10 +242,6 @@ class HexGrid extends MouseListener {
 		if (this.game.displayChains) {
 			this.polys.forEach(hex => drawText(ctx, `${hex.chains}`, hex.center, 'red', 'Bold 18px Sans-Serif', '#4a0000'));
 		}
-		/*if (this.lost) {
-			drawText(ctx, "Oh no!", {x: 250, y: 250}, 'red', 'Bold 48px Sans-Serif', '#4a4a4a');
-			drawText(ctx, "You didn't make it..", {x: 250, y: 300}, 'red', 'Bold 48px Sans-Serif', '#4a4a4a');
-		} */
 	}
 
 	expandFromBelow() {
@@ -948,7 +952,7 @@ class HexGrid extends MouseListener {
                     }
                 }
 			}
-            if (evt.LB && evt.RB) {
+            if (evt['LB+RB']) {
                 this.expandFromBelow();
             } else if (evt.LB) {
                 this.favor = 'left';
