@@ -341,6 +341,13 @@ class TitleScreen extends Screen {
 		this.creationTime = 40;*/
 	}
 
+	click(p) {
+		//if (this.find('button').text.text != 'Press Start')
+			this.find('button').click();
+		//else
+			//super.click();
+	}
+
 	draw(ctx) {
 		super.draw(ctx);
 		ctx.globalAlpha = 0.5;
