@@ -108,7 +108,6 @@ class Sounds {
 	updateGain() {
 		const sg = this.game.menu.find('Sound Effects Volume').value;
 		const mg = this.game.menu.find('Music Volume').value;
-		console.log(sg);
 		this.soundGainNode.gain.setValueAtTime(sg, this.ctx.currentTime);
 		for (const name in this.music) {
 			this.music[name].mediaElement.volume = mg;

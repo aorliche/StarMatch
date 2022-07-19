@@ -112,8 +112,6 @@ class MainScreen extends Screen {
 		const dragon = this.find('Dragon');
 		dragon.img = images['dragonHeadFire'];
 		types.forEach(t => {
-			console.log(t);
-			console.log(this.find(t));
 			this.find(t).flame();		
 		});
 		this.flameTimeout = setTimeout(e => {
@@ -163,6 +161,7 @@ class MenuScreen extends Screen {
 			fontSize: 20, color: '#b2265b', barColor: '#995aa3', hoverColor: '#df69bc',
 			labels: ['10s', '15s', '20s', '30s', '40s', '50s', 'Off'], index: 5, margin: 10,
 			cb: time => {
+				localStorage.setItem('Tectonic Activity', time);
 				time = parseInt(time);
 				const timer = this.game.main.find('Tectonic Activity');
 				timer.timeSav = time;
@@ -179,6 +178,7 @@ class MenuScreen extends Screen {
 			fontSize: 20, color: '#b2265b', barColor: '#995aa3', hoverColor: '#df69bc',
 			labels: [0, 0.05, 0.1, 0.2, 0.4, 0.8, 1], index: 4, margin: 10,
 			cb: gain => {
+				localStorage.setItem('Sound Effects Volume', gain);
 				this.game.sounds.updateGain();
 			}},
 			this.game.ctx));
@@ -188,12 +188,15 @@ class MenuScreen extends Screen {
 			fontSize: 20, color: '#b2265b', barColor: '#995aa3', hoverColor: '#df69bc',
 			labels: [0, 0.05, 0.1, 0.2, 0.4, 0.8, 1], index: 2, margin: 10,
 			cb: gain => {
+				localStorage.setItem('Music Volume', gain);
 				this.game.sounds.updateGain();
 			}},
 			this.game.ctx));
 
-		vert1.packAll();
 		this.add(vert1);
+		this.restore();
+
+		vert1.packAll();
 	}
 	
 	draw(ctx) {
@@ -213,6 +216,21 @@ class MenuScreen extends Screen {
 			return 'MEDIUM';
 		else 
 			return 'LOW';
+	}
+
+	restore() {
+		['Tectonic Activity', 'Sound Effects Volume', 'Music Volume'].forEach(name => {
+			const val = localStorage.getItem(name);
+			if (val || val === 0) {
+				const slider = this.find(name);
+				for (let i=0; i<slider.labels.length; i++) {
+					if (slider.labels[i] == val) {
+						slider.label.text = val;
+						slider.bar.index = i;
+					}
+				}
+			}
+		});
 	}
 }
 
@@ -254,6 +272,7 @@ class PadConfigScreen extends Screen {
 
 		vert1.add(new Button({text: 'Return', dim: {w: 120, h: 40}, 
 			cb: e => {
+				this.save();
 				if (this.game.level == 0) {
 					this.game.newGame();
 				} else {
@@ -267,12 +286,20 @@ class PadConfigScreen extends Screen {
 		this.find('Start').selected = true;
 
         this.ts = null;
+
+		if (this.restore()) {
+			this.fieldIdx = this.fields.length;
+			this.find('Return').hovering = true;
+		}
     }
     
     capture(pad) {
         if (!this.unlock) return;
         if (this.fieldIdx < this.fields.length) {
             const field = this.fields[this.fieldIdx];
+			field.button = null;
+			field.axis = null;
+			field.value = null;
             const success = field.capture(pad);
             if (success) {
                 if (field.button || field.button === 0) this.map[field.button] = field.name;
@@ -289,18 +316,46 @@ class PadConfigScreen extends Screen {
             }
         } else if (pad.timestamp - 300 > this.ts) {
 			if (this.game.padState.anyButton()) this.find('Return').click();
-            /*let pressed = false;
-            pad.buttons.forEach(b => {
-                if (b.pressed) pressed = true;
-            });
-            this.find('Return').hovering = true;
-            if (pressed) this.buttons[0].click();*/
         }
     }
 
 	lock() {
 		this.unlock = false;
 		setTimeout(e => {this.unlock = true;}, 300);
+	}
+
+	restore() {
+		let found = false;
+		['Start', 'A', 'B', 'X', 'Y', 'LB', 'RB', 'LA', 'RA', 'UA', 'DA'].forEach(name => {
+			const buttonOrAxis = localStorage.getItem(name);
+			if (buttonOrAxis || buttonOrAxis === 0) {
+				found = true;
+				const field = this.find(name);
+				if (buttonOrAxis.includes(':')) {
+					const [axis,value] = buttonOrAxis.split(':');
+					field.axis = parseInt(axis);
+					field.value = parseInt(value);
+					field.button = null;
+				} else {
+					field.axis = null;
+					field.value = null;
+					field.button = buttonOrAxis;
+				}
+				this.map[buttonOrAxis] = name;
+			}
+		});
+		return found;
+	}
+
+	save() {
+		const map = this.game.config.map;
+		['Start', 'A', 'B', 'X', 'Y', 'LB', 'RB', 'LA', 'RA', 'UA', 'DA'].forEach(name => {
+			localStorage.removeItem(name);
+		});
+		for (const button in map) {
+			const name = map[button];
+			localStorage.setItem(name, button.toString());
+		}
 	}
 }
 
