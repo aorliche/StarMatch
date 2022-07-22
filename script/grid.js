@@ -147,6 +147,7 @@ class HexGrid extends MouseListener {
 			if (!hex.frozen && this.game.main.find('Freezes').count > 0) {
 				hex.frozen = true;
 				this.game.main.find('Freezes').count--;
+				this.game.main.freeze(hex.type);
 			} else if (hex.frozen) {
 				hex.frozen = false;
                 this.clear();

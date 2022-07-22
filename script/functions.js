@@ -229,3 +229,7 @@ function addPoints(a, b) {
 function basename(path) {
 	return path.split(/[\\/]/).pop().split(/\./)[0]
 }
+
+function repeat(what, n) {
+	return Array(n).fill(what).flat()
+}

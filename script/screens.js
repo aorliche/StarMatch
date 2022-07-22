@@ -12,6 +12,9 @@ class MainScreen extends Screen {
 		this.astrons = [];
 		this.astronCounter = {};
 		this.flameTimeout = null;
+		this.freezeTimeout = null;
+		this.dragonHeadFire = ['dragonHeadFire', 'DragonHeadFire1', 'DragonHeadFire2'].map(name => images[name]);
+		this.dragonHeadFrost = ['DragonHeadFrost', 'DragonHeadFrost1'].map(name => images[name]);
 
 		astrons.forEach(t => {
 			const ta = `${t}_a`;
@@ -26,7 +29,7 @@ class MainScreen extends Screen {
 		const power2 = new HBox({margin: {top: 10, bottom: 0, left: 0, right: 0}, align: 'center'});
 
 		power2.add(new Text({name: 'Btext', text: 'Blasts', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
-			margin: {left: 50, right: 5, top: 0, bottom: 0}}, this.game.ctx));
+			margin: {left: 10, right: 5, top: 0, bottom: 0}}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Blasts', imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5}));
 		power2.add(new Text({name: 'Ftext', text: 'Freezes', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: 5}));
@@ -96,6 +99,20 @@ class MainScreen extends Screen {
 		super.action(type, p);
 	}
 
+	blast() {
+		this.clearTimeouts();
+		const dragon = this.find('Dragon');
+		dragon.img = this.dragonHeadFrost[1];
+		this.freezeTimeout = setTimeout(e => this.post(dragon, this.dragonHeadFrost, 'freezeTimeout'), 500); 
+	}
+
+	clearTimeouts() {
+		if (this.flameTimeout) 
+			clearTimeout(this.flameTimeout);
+		if (this.freezeTimeout) 
+			clearTimeout(this.freezeTimeout);
+	}
+
 	draw(ctx) {
 		const dx = this.game.gridPos.x;
 		const dy = this.game.gridPos.y;
@@ -107,16 +124,26 @@ class MainScreen extends Screen {
 	}
 
 	flame(types) {
-		if (this.flameTimeout) 
-			clearTimeout(this.flameTimeout);
+		this.clearTimeouts();
 		const dragon = this.find('Dragon');
-		dragon.img = images['dragonHeadFire'];
 		types.forEach(t => {
 			this.find(t).flame();		
 		});
-		this.flameTimeout = setTimeout(e => {
-			dragon.img = images['dragonHead'];	
-		}, 1000);
+		this.flameTimeout = setTimeout(e => this.post(dragon, this.dragonHeadFire, 'flameTimeout', 0, this.dragonHeadFire.length), 0); 
+	}
+
+	freeze(type) {
+		this.clearTimeouts();
+		const dragon = this.find('Dragon');
+		this.freezeTimeout = setTimeout(e => this.post(dragon, this.dragonHeadFrost, 'freezeTimeout', 0, 3*this.dragonHeadFrost.length), 0); 
+	}
+
+	post(dragon, ims, timeoutName, n, nTot) {
+		dragon.img = (n == nTot) ? images['dragonHead'] : ims[n%ims.length];
+		dragon.pack();
+		if (n < nTot) {
+			this[timeoutName] = setTimeout(e => this.post(dragon, ims, timeoutName, n+1, nTot), 1000/nTot);
+		}
 	}
 
 	resetPowerups() {

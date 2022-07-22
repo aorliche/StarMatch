@@ -222,7 +222,8 @@ window.addEventListener('load', e => {
 	});
 
 	['Images/Assets/DragonTitle.png', 'Images/Assets/controller.png', 'Images/Assets/dragonHead.png',
-	'Images/Assets/dragonHeadFire.png'].forEach(t => {
+	'Images/Assets/dragonHeadFire.png', 'Images/Assets/DragonHeadFire1.png', 'Images/Assets/DragonHeadFire2.png',
+	'Images/Assets/DragonHeadFrost.png', 'Images/Assets/DragonHeadFrost1.png'].forEach(t => {
 		const key = basename(t);
 		images[key] = new Image();
 		images[key].addEventListener('load', loadFn);
