@@ -13,8 +13,11 @@ class MainScreen extends Screen {
 		this.astronCounter = {};
 		this.flameTimeout = null;
 		this.freezeTimeout = null;
+		this.blastTimeout = null;
 		this.dragonHeadFire = ['dragonHeadFire', 'DragonHeadFire1', 'DragonHeadFire2'].map(name => images[name]);
 		this.dragonHeadFrost = ['DragonHeadFrost', 'DragonHeadFrost1'].map(name => images[name]);
+		this.dragonHeadBlast = ['DragonHeadBlast1'].map(name => images[name]);
+		this.projectiles = [];
 
 		astrons.forEach(t => {
 			const ta = `${t}_a`;
@@ -32,7 +35,7 @@ class MainScreen extends Screen {
 			margin: {left: 10, right: 5, top: 0, bottom: 0}}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Blasts', imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5}));
 		power2.add(new Text({name: 'Ftext', text: 'Freezes', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, this.game.ctx));
-		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: 5}));
+		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: {left: 5, right: 300, top: 5, bottom: 5}}));
 
 		power1.add(power2);
 		power1.add(new Timer({text: 'Tectonic Activity', cb: e => {
@@ -99,18 +102,20 @@ class MainScreen extends Screen {
 		super.action(type, p);
 	}
 
-	blast() {
+	blast(poly) {
 		this.clearTimeouts();
 		const dragon = this.find('Dragon');
-		dragon.img = this.dragonHeadFrost[1];
-		this.freezeTimeout = setTimeout(e => this.post(dragon, this.dragonHeadFrost, 'freezeTimeout'), 500); 
+		this.blastTimeout = setTimeout(e => 
+			this.post(dragon, this.dragonHeadBlast, 'blastTimeout', 0, this.dragonHeadBlast.length), 0); 
+		this.game.animator.blast(
+			{x: dragon.pos.x+20, y: dragon.pos.y+dragon.dim.h/2+30}, 
+			this.toScreenPos(poly.center));
 	}
 
 	clearTimeouts() {
-		if (this.flameTimeout) 
-			clearTimeout(this.flameTimeout);
-		if (this.freezeTimeout) 
-			clearTimeout(this.freezeTimeout);
+		[this.flameTimeout, this.freezeTimeout, this.blastTimeout].forEach(to => {
+			if (to) clearTimeout(to);
+		});
 	}
 
 	draw(ctx) {
@@ -121,6 +126,10 @@ class MainScreen extends Screen {
 		this.game.notifications.forEach(n => n.draw(ctx));
 		ctx.translate(-dx, -dy);
 		super.draw(ctx);
+		this.projectiles.forEach(p => p.draw(ctx));
+		/*const dragon = this.find('Dragon');
+		const p = {x: dragon.pos.x, y: dragon.pos.y+dragon.dim.h/2};
+		drawCircle(ctx, p, 5, '#f00');*/
 	}
 
 	flame(types) {
@@ -129,13 +138,15 @@ class MainScreen extends Screen {
 		types.forEach(t => {
 			this.find(t).flame();		
 		});
-		this.flameTimeout = setTimeout(e => this.post(dragon, this.dragonHeadFire, 'flameTimeout', 0, this.dragonHeadFire.length), 0); 
+		this.flameTimeout = setTimeout(e => 
+			this.post(dragon, this.dragonHeadFire, 'flameTimeout', 0, this.dragonHeadFire.length), 0); 
 	}
 
 	freeze(type) {
 		this.clearTimeouts();
 		const dragon = this.find('Dragon');
-		this.freezeTimeout = setTimeout(e => this.post(dragon, this.dragonHeadFrost, 'freezeTimeout', 0, 3*this.dragonHeadFrost.length), 0); 
+		this.freezeTimeout = setTimeout(e => 
+			this.post(dragon, this.dragonHeadFrost, 'freezeTimeout', 0, 3*this.dragonHeadFrost.length), 0); 
 	}
 
 	post(dragon, ims, timeoutName, n, nTot) {
@@ -147,8 +158,14 @@ class MainScreen extends Screen {
 	}
 
 	resetPowerups() {
-		this.find('Blasts').count = 1;
+		this.find('Blasts').count = 5;
 		this.find('Freezes').count = 1;
+	}
+
+	toScreenPos(gridPos) {
+		const dx = this.game.gridPos.x;
+		const dy = this.game.gridPos.y;
+		return {x: gridPos.x + dx, y: gridPos.y + dy};
 	}
 }
 

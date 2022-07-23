@@ -233,3 +233,7 @@ function basename(path) {
 function repeat(what, n) {
 	return Array(n).fill(what).flat()
 }
+
+function remove(arr, item) {
+	arr.splice(arr.indexOf(item), 1);
+}

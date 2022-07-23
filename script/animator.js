@@ -1,3 +1,37 @@
+class Sprite {
+	constructor(image, c, dim, to) {
+		this.image = image;
+		this.pos = {x: 0, y: 0};
+		this.dim = dim ?? {w: image.width, h: image.height};
+		this.center = c;
+		this.to = to;
+	}
+
+	draw(ctx) {
+		const c = this.center;
+		const angle = Math.atan2(c.y-this.to.y, c.x-this.to.x);
+		ctx.translate(c.x, c.y);
+		ctx.rotate(angle);
+		ctx.drawImage(this.image, -this.dim.w/2, -this.dim.h/2, this.dim.w, this.dim.h);
+		ctx.rotate(-angle);
+		ctx.translate(-c.x, -c.y);
+	}
+
+	translate(dx, dy) {
+		this.pos.x += dx;
+		this.pos.y += dy;
+	}
+
+	get center() {
+		return {x: this.pos.x + this.dim.w/2, y: this.pos.y + this.dim.h/2};
+	}
+
+	set center(c) {
+		this.pos.x = c.x - this.dim.w/2;
+		this.pos.y = c.y - this.dim.h/2;
+	}
+}
+
 class Animator {
 	constructor(game) {
 		this.game = game;
@@ -8,6 +42,14 @@ class Animator {
 		this.arrivedTimeout = null;
 		this.restockBelowSpeed = 2;
 		this.expandBelowSpeed = 1;
+	}
+	
+	blast(from, to) {
+		to = {...to};
+		const blast = new Sprite(images['Blast'], {...from}, null, to);
+		this.game.main.projectiles.push(blast);
+		this.infos.push({hex: blast, speed: 100, to: [to]});
+		this.start();
 	}
 
 	clear(hex) {
@@ -91,14 +133,20 @@ class Animator {
 					me.game.grid.clearing.splice(me.game.grid.clearing.indexOf(info.hex),1);
 					return false;
 				}
+				// Arrived
 				if (distance(info.hex.center, info.to[0]) < info.speed) {
 					info.hex.center = info.to.splice(0,1)[0];
 					// Falling or swapping
 					if (info.to.length == 0) {
-						arrived.push(info);
+						// Polygon or sprite
+						if (info.hex instanceof HexPoly) 
+							arrived.push(info);
+						else if (me.game.main.projectiles.includes(info.hex)) 
+							remove(me.game.main.projectiles, info.hex);
 						return false;
 					}
 				} else {
+					// Movement
 					const dx = info.to[0].x-info.hex.center.x;
 					const dy = info.to[0].y-info.hex.center.y;
 					const theta = Math.atan2(dy,dx);

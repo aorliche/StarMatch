@@ -316,8 +316,6 @@ class ImageControl extends Control {
 		} else {
 			this.dim = {w: this.img.width, h: this.img.height};
 		}
-		/*if (!this.dim.w) this.dim.w = this.img.width;
-		if (!this.dim.h) this.dim.h = this.img.height;*/
 	}
 }
 

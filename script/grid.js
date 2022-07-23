@@ -94,6 +94,7 @@ class HexGrid extends MouseListener {
             this.clearSingle(poly);
             this.fall();
             this.game.sounds.play('blast');
+			this.game.main.blast(poly);
             blastCounter.count--;
             if (this.polys.filter(p => !p.empty).length == 0) {
                 this.game.winLevel();
