@@ -32,7 +32,7 @@ class MainScreen extends Screen {
 		const power2 = new HBox({margin: {top: 10, bottom: 0, left: 0, right: 0}, align: 'center'});
 
 		power2.add(new Text({name: 'Btext', text: 'Blasts', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
-			margin: {left: 10, right: 5, top: 0, bottom: 0}}, this.game.ctx));
+			margin: {left: 50, right: 5, top: 0, bottom: 0}}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Blasts', imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5}));
 		power2.add(new Text({name: 'Ftext', text: 'Freezes', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: {left: 5, right: 300, top: 5, bottom: 5}}));
