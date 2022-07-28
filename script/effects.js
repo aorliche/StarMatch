@@ -3,8 +3,9 @@
 class Notification extends Text {
     constructor(params, game) {
 		super(params, game.ctx);
+		this.pack();
         this.game = game;
-		this.pos = params.pos ?? {x: this.game.grid.dim.w/2, y: this.game.grid.dim.h/3};
+		this.pos = params.pos ?? {x: this.game.grid.dim.w/2 - this.dim.w/2, y: this.game.grid.dim.h/3};
         this.age = 0;
         this.lifetime = params.lifetime ?? 2*30;
     }

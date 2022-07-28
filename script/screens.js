@@ -158,7 +158,7 @@ class MainScreen extends Screen {
 	}
 
 	resetPowerups() {
-		this.find('Blasts').count = 5;
+		this.find('Blasts').count = 1;
 		this.find('Freezes').count = 1;
 	}
 
@@ -238,9 +238,9 @@ class MenuScreen extends Screen {
 			this.game.ctx));
 
 		this.add(vert1);
-		this.restore();
-
 		vert1.packAll();
+		
+		this.restore();
 	}
 	
 	draw(ctx) {

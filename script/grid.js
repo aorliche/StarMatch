@@ -41,6 +41,7 @@ class HexGrid extends MouseListener {
 			hex.id = count++;
 			addLoc(this.polyMap, loc[1], hex);
 		}
+		this.saveBorder();
 		// Clean up board
 		this.initCleanBoard();
 	}
@@ -675,6 +676,7 @@ class HexGrid extends MouseListener {
 				p1 = this.chainFn[2](j, p0);
 			}
 			if (!this.inScreenLimits(p1, offScreen)) continue;
+			if (this.border && (p1.x < this.border.minx || p1.x > this.border.maxx)) continue;
 			addLoc(this.loc, loc, p1);
 			this.fastLoc.push(p1);
 		}
@@ -986,6 +988,23 @@ class HexGrid extends MouseListener {
 			hex.attract(this.center, size/this.size);
 		});
 		this.size = size;
+	}
+
+	// Limit expanded polys to be within these limits
+	saveBorder() {
+		let minx = this.dim.w/2;
+		let maxx = this.dim.w/2;
+		this.polys.forEach(p => {
+			if (p.center.x < minx) minx = p.center.x;
+			if (p.center.x > maxx) maxx = p.center.x;
+		});
+		let d;
+		if (this.ptype == 'tri') d = this.size/2+5;
+		if (this.ptype == 'square') d = this.size/2+5;
+		if (this.ptype == 'hex') d = this.size*Math.sqrt(3)/2+5;
+		minx -= d;
+		maxx += d;
+		this.border = {minx: minx, maxx: maxx};
 	}
 
     // Requires selected to not be null

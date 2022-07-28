@@ -93,8 +93,8 @@ class Animator {
 
 	restockFromBelow(hex, p) {
 		const to = {...hex.center};
-		hex.center.y = this.game.dim.h+2*this.game.grid.size;
-		//hex.center = {x: to.x, y: this.game.dim.h+hex.center.y-p.y+this.game.grid.size};
+		//hex.center.y = this.game.dim.h+2*this.game.grid.size;
+		hex.center = {x: to.x, y: this.game.dim.h+hex.center.y-p.y+this.game.grid.size};
 		hex.moving = true;
 		hex.restocking = true;
 		this.infos.push({hex: hex, speed: this.restockBelowSpeed, to: [to], special: 'restockFromBelow'});

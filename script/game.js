@@ -47,7 +47,7 @@ class Game extends MouseListener {
 	}
     
     notify(text) {
-        const notice = new Notification({text: text, fontWeight: 'Bold', color: '#f00'}, this);
+        const notice = new Notification({text: text, fontSize: 24, fontWeight: 'Bold', color: '#f66'}, this);
         if (this.notifications.length > 0 && 
             notice.pos.y - this.notifications.at(-1).pos.y < 40) {
             notice.pos.y = this.notifications.at(-1).pos.y + 40;
