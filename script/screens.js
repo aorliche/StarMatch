@@ -21,7 +21,7 @@ class MainScreen extends Screen {
 
 		astrons.forEach(t => {
 			const ta = `${t}_a`;
-			this.astrons.push(new Astron({type: t, img: images[ta][0], flamed: images[ta], dim: {w: 110, h: 110}, margin: -5}));
+			this.astrons.push(new Astron({type: t, img: images[ta][0], flamed: images[ta], dim: {w: 95, h: 95}, margin: -5}));
 		});
 
 		this.astrons[0].margin.top = 20;
@@ -29,7 +29,7 @@ class MainScreen extends Screen {
 		this.astrons.at(-1).margin.bottom = 100;
 
 		const power1 = new VBox({pos: {x: 0, y: 0}, dim: {w: this.dim.w, h: 110}, bgColor: '#241e3c', align: 'center'});
-		const power2 = new HBox({margin: {top: 10, bottom: 0, left: 50, right: 0}, align: 'center'});
+		const power2 = new HBox({margin: {top: 30, bottom: 0, left: 100, right: 0}, align: 'center'});
 
 		power2.add(new Text({name: 'Btext', text: 'Blasts', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
 			margin: {left: 10, right: 5, top: 0, bottom: 0}}, this.game.ctx));
@@ -289,7 +289,7 @@ class PadConfigScreen extends Screen {
 			fontWeight: 'Bold', fontFamily: fontFamily2}, this.game.ctx));
 		vert1.add(new Text({text: 'Press button when field is highlighted', fontWeight: 'Bold', fontSize: 24, 
 			color: '#8f2559', margin: 10}, this.game.ctx));
-		vert1.add(new ImageControl({img: images['controller'], dim: {w: 250, h: 250}, margin: 10}));
+		vert1.add(new ImageControl({img: images['controller'], dim: {w: 150, h: 150}, margin: 10}));
 		vert1.add(new PadConfigButton({text: 'Start', dim: {w: 160, h: 30}, margin: 10}, this.game.ctx, this));
 
 		const twoColumns = new HBox({margin: 10});
@@ -410,7 +410,7 @@ class TitleScreen extends Screen {
 		
 		const vert1 = new VBox({pos: {x: 0, y: 40}, dim: {...this.dim}, align: 'center'});
 		vert1.add(new Text({text: 'DRAGON STAR', fontSize: 72, fontFamily: fontFamily1, margin: 10}, this.game.ctx));
-		vert1.add(new ImageControl({img: images['DragonTitle'], dim: {w: 350, h: 350}, margin: 20}));
+		vert1.add(new ImageControl({img: images['DragonTitle'], dim: {w: 280, h: 280}, margin: 20}));
 		vert1.add(new Button({name: 'button', text: 'Click to Enable Sounds', 
 			color: '#9954b6', hoverColor: '#c691e5', margin: 30, 
 			cb: e => {

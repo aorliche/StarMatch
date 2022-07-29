@@ -44,7 +44,7 @@
 </head>
 <body>
 <div style='text-align: center;'>
-<canvas style='margin: 0 auto;' id='game' width='1280' height='720'></canvas>
+<canvas style='margin: 0 auto;' id='game' width='1040' height='640'></canvas>
 </div>
 <div>
 <a href='#' id='hideUnhide' style='color: #ddd;'>Hide/Reveal Interface</a>
