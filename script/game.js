@@ -168,6 +168,7 @@ class Game extends MouseListener {
 			this.animator.infos = [];
 			this.paused = true;
 			this.level = 0;
+			this.visible = this.title;
 		}
 	}
 }
