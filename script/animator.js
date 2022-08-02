@@ -1,4 +1,4 @@
-class Sprite {
+class Blast {
 	constructor(image, c, dim, to) {
 		this.image = image;
 		this.pos = {x: 0, y: 0};
@@ -32,6 +32,46 @@ class Sprite {
 	}
 }
 
+class FreezeLine {
+	// Images should have the same height
+	constructor(height, from, to) {
+		this.im1 = images['Frost'];
+		this.im2 = images['Frost1'];
+		this.dim1 = {w: this.im1.width, h: this.im1.height};
+		this.dim2 = {w: this.im2.width, h: this.im2.height};
+		if (height) {
+			const scale = height/this.dim1.h;
+			this.dim1.w *= scale;
+			this.dim1.h *= scale;
+			this.dim2.w *= scale;
+			this.dim2.h *= scale;
+		}
+		this.from = from;
+		this.to = to;
+		this.lifetime = 45;
+	}
+
+	draw(ctx) {
+		const d = distance(this.from, this.to);
+		const angle = Math.atan2(this.to.y-this.from.y, this.to.x-this.from.x);
+		const si = this.lifetime%13 > 2;
+		ctx.translate(this.to.x, this.to.y);
+		ctx.rotate(angle);
+		for (let i=si, dx=0; dx>-d; i++) {
+			const im = this.im2; //(i%2) ? this.im2 : this.im1;
+			const dim = this.dim2; //(i%2) ? this.dim2 : this.dim1;
+			ctx.drawImage(im, dx, -dim.h/2, -dim.w, dim.h);
+			dx -= dim.w;
+		}
+		ctx.rotate(-angle);
+		ctx.translate(-this.to.x, -this.to.y);
+	}
+
+	tick() {
+		this.lifetime--;
+	}
+}
+
 class Animator {
 	constructor(game) {
 		this.game = game;
@@ -46,7 +86,7 @@ class Animator {
 	
 	blast(from, to) {
 		to = {...to};
-		const blast = new Sprite(images['Blast'], {...from}, null, to);
+		const blast = new Blast(images['Blast'], {...from}, null, to);
 		this.game.main.projectiles.push(blast);
 		this.infos.push({hex: blast, speed: 100, to: [to]});
 		this.start();

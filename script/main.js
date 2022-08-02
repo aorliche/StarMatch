@@ -195,10 +195,10 @@ window.addEventListener('load', e => {
 	}
 
 	// Load images
-	// 6 astrons, 2 assets, 3 ice, 1 blast, 24 astron characters, 2 dragon heads
+	// 6 astrons, 2 assets, 3 ice, 1 blast, 24 astron characters, 2 dragon heads, 2 frost line
 	let numLoaded = 0;
 	function loadFn() {
-		if (++numLoaded == 6+2+3+1+24+2) {
+		if (++numLoaded == 6+2+3+1+24+2+2) {
 			game = new Game(canvas, updatePage);
             deferred.game = game;
 			setParams();
@@ -224,7 +224,8 @@ window.addEventListener('load', e => {
 	['Images/Assets/DragonTitle.png', 'Images/Assets/controller.png', 'Images/Assets/dragonHead.png',
 	'Images/Assets/dragonHeadFire.png', 'Images/Assets/DragonHeadFire1.png', 'Images/Assets/DragonHeadFire2.png',
 	'Images/Assets/DragonHeadFrost.png', 'Images/Assets/DragonHeadFrost1.png', 'Images/Assets/DragonHeadBlast.png',
-	'Images/Assets/DragonHeadBlast1.png', 'Images/Assets/Blast.png', 'Images/Assets/Blast1.png'].forEach(t => {
+	'Images/Assets/DragonHeadBlast1.png', 'Images/Assets/Blast.png', 'Images/Assets/Blast1.png', 
+	'Images/Assets/Frost.png', 'Images/Assets/Frost1.png'].forEach(t => {
 		const key = basename(t);
 		images[key] = new Image();
 		images[key].addEventListener('load', loadFn);

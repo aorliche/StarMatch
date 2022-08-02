@@ -18,6 +18,7 @@ class MainScreen extends Screen {
 		this.dragonHeadFrost = ['DragonHeadFrost', 'DragonHeadFrost1'].map(name => images[name]);
 		this.dragonHeadBlast = ['DragonHeadBlast1'].map(name => images[name]);
 		this.projectiles = [];
+		this.freezeLines = [];
 
 		astrons.forEach(t => {
 			const ta = `${t}_a`;
@@ -29,10 +30,10 @@ class MainScreen extends Screen {
 		this.astrons.at(-1).margin.bottom = 100;
 
 		const power1 = new VBox({pos: {x: 0, y: 0}, dim: {w: this.dim.w, h: 110}, bgColor: '#241e3c', align: 'center'});
-		const power2 = new HBox({margin: {top: 30, bottom: 0, left: 100, right: 0}, align: 'center'});
+		const power2 = new HBox({margin: {top: 30, bottom: 0, left: 0, right: 0}, align: 'center'});
 
 		power2.add(new Text({name: 'Btext', text: 'Blasts', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
-			margin: {left: 10, right: 5, top: 0, bottom: 0}}, this.game.ctx));
+			margin: {left: -50, right: 5, top: 0, bottom: 0}}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Blasts', imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5}));
 		power2.add(new Text({name: 'Ftext', text: 'Freezes', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: {left: 5, right: 300, top: 5, bottom: 5}}));
@@ -125,6 +126,7 @@ class MainScreen extends Screen {
 		this.game.grid.draw(ctx);
 		this.game.notifications.forEach(n => n.draw(ctx));
 		ctx.translate(-dx, -dy);
+		this.freezeLines.forEach(line => line.draw(ctx));
 		super.draw(ctx);
 		this.projectiles.forEach(p => p.draw(ctx));
 		/*const dragon = this.find('Dragon');
@@ -142,11 +144,14 @@ class MainScreen extends Screen {
 			this.post(dragon, this.dragonHeadFire, 'flameTimeout', 0, this.dragonHeadFire.length), 0); 
 	}
 
-	freeze(type) {
+	freeze(poly) {
 		this.clearTimeouts();
 		const dragon = this.find('Dragon');
 		this.freezeTimeout = setTimeout(e => 
 			this.post(dragon, this.dragonHeadFrost, 'freezeTimeout', 0, 3*this.dragonHeadFrost.length), 0); 
+		console.log(dragon.center);
+		console.log(poly.center);
+		this.freezeLines.push(new FreezeLine(50, dragon.center, this.toScreenPos(poly.center)));
 	}
 
 	post(dragon, ims, timeoutName, n, nTot) {
@@ -159,7 +164,14 @@ class MainScreen extends Screen {
 
 	resetPowerups() {
 		this.find('Blasts').count = 1;
-		this.find('Freezes').count = 1;
+		this.find('Freezes').count = 5;
+	}
+
+	tick() {
+		this.freezeLines = this.freezeLines.filter(line => {
+			line.tick();
+			return line.lifetime > 0;
+		});
 	}
 
 	toScreenPos(gridPos) {

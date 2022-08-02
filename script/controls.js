@@ -23,6 +23,15 @@ class Control extends MouseListener {
 		this.bgColor = params.bgColor ?? null;
 		this.bgAlpha = params.bgAlpha ?? null;
     }
+
+	get center() {
+		if (this.center_) return this.center_;
+		else return {x: this.pos.x+this.dim.w/2, y: this.pos.y+this.dim.h/2};
+	}
+
+	set center(c) {
+		this.center_ = c;
+	}
     
     contains(p, noupdate) {
 		const yes = p.x > this.pos.x && p.x < this.pos.x+this.dim.w &&
