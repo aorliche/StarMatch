@@ -195,10 +195,10 @@ window.addEventListener('load', e => {
 	}
 
 	// Load images
-	// 6 astrons, 2 assets, 3 ice, 1 blast, 24 astron characters, 2 dragon heads, 2 frost line
+	// 6 astrons, 3 ice counter, 1 blast counter, 24 astron characters, 1 title, 1 controller, 8 dragon heads, 2 blast, 2 frost line
 	let numLoaded = 0;
 	function loadFn() {
-		if (++numLoaded == 6+2+3+1+24+2+2) {
+		if (++numLoaded == 6+3+1+24+1+1+8+2+2) {
 			game = new Game(canvas, updatePage);
             deferred.game = game;
 			setParams();

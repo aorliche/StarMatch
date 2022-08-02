@@ -24,11 +24,13 @@ class Control extends MouseListener {
 		this.bgAlpha = params.bgAlpha ?? null;
     }
 
+	// TODO Dangerous!?
 	get center() {
 		if (this.center_) return this.center_;
 		else return {x: this.pos.x+this.dim.w/2, y: this.pos.y+this.dim.h/2};
 	}
 
+	// TODO Dangerous!?
 	set center(c) {
 		this.center_ = c;
 	}
@@ -150,6 +152,10 @@ class Box extends Control {
 		if (pass === 0)
 			this.children.forEach(c => {
 				if (c.pack) c.pack(0);
+				if (!c.dim.w || !c.dim.h) {
+					console.log(c);
+					throw new Error('bad dim');
+				}
 			});
         if (this instanceof HBox) {
 			w = 0;
