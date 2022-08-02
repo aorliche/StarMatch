@@ -164,7 +164,7 @@ class MainScreen extends Screen {
 
 	resetPowerups() {
 		this.find('Blasts').count = 1;
-		this.find('Freezes').count = 5;
+		this.find('Freezes').count = 1;
 	}
 
 	tick() {
