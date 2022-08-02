@@ -267,11 +267,11 @@ class MenuScreen extends Screen {
 		if (delay < 15) 
 			return 'INSANE';
 		else if (delay < 20) 
-			return 'HIGH';
+			return 'FAST';
 		else if (delay < 40)
 			return 'MEDIUM';
 		else 
-			return 'LOW';
+			return 'SLOW';
 	}
 
 	restore() {
