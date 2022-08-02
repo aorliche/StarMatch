@@ -30,13 +30,13 @@ class MainScreen extends Screen {
 		this.astrons.at(-1).margin.bottom = 100;
 
 		const power1 = new VBox({pos: {x: 0, y: 0}, dim: {w: this.dim.w, h: 110}, bgColor: '#241e3c', align: 'center'});
-		const power2 = new HBox({margin: {top: 30, bottom: 0, left: 80, right: 0}, align: 'center'});
+		const power2 = new HBox({margin: {top: 30, bottom: 0, left: 0, right: 0}, align: 'center'});
 
 		power2.add(new Text({name: 'Btext', text: 'Blasts', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
-			margin: {left: 0, right: 5, top: 0, bottom: 0}}, this.game.ctx));
+			margin: {left: 5, right: 5, top: 0, bottom: 0}}, this.game.ctx));
 		power2.add(new ImageCounter({name: 'Blasts', imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5}));
 		power2.add(new Text({name: 'Ftext', text: 'Freezes', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, this.game.ctx));
-		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: {left: 5, right: 300, top: 5, bottom: 5}}));
+		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: {left: 5, right: 380, top: 5, bottom: 5}}));
 
 		power1.add(power2);
 		power1.add(new Timer({text: 'Tectonic Activity', cb: e => {
