@@ -325,6 +325,7 @@ class HexGrid extends MouseListener {
 						cur.chains = [...chain[j-1]];
 						addLoc(this.polyMap, [...cur.chains], cur);
 						addLoc(this.polyMap, [...prev.chains], prev);
+						console.log(prev);
 						this.animator.fall(prev, {...cur.center});
 						cur.center = {...prev.center};
 						changed = true;
@@ -503,6 +504,7 @@ class HexGrid extends MouseListener {
 				}
 				for (let j=me.limits.j[0]; j<me.limits.j[1]+1; j++) {
 					for (let k=me.limits.k[0]; k<me.limits.k[1]+1; k++) {
+                        // Triangle
 						if (me.ptype == 'tri') {
 							const i0 = j+k;
 							const i1 = i0+Math.sign(i0+0.1);
@@ -518,6 +520,7 @@ class HexGrid extends MouseListener {
 									}
 								} catch (e) {}
 							}
+                        // Hexagon
 						} else {
 							const i = j-k;
 							if (me.inLimits([i,j,k])) {
@@ -1027,9 +1030,11 @@ class HexGrid extends MouseListener {
 	}
 
 	scheduleExpand() {
-		const timer = this.game.main.find('Tectonic Activity');
-		if (!timer.active || (timer.active && timer.time > 5))
-			timer.start(5);
+		if (!this.game.levelOver) {
+			const timer = this.game.main.find('Tectonic Activity');
+			if (!timer.active || (timer.active && timer.time > 5))
+				timer.start(5);
+		}
 	}
 
 	solveable() {

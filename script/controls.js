@@ -626,29 +626,26 @@ class Slider extends HBox {
 class Timer extends Text {
 	constructor(params, ctx) {
 		super(params, ctx);
+        this.text = params.text;
 		this.textSav = params.text;
 		this.time = params.time;
 		this.timeSav = params.time;
 		this.cb = params.cb;
 		this.loop = params.loop;
 		this.active = params.active ?? false;
-		this.timeout = null;
-		this.text = this.genText();
+		this.visible = params.visible ?? true;
 		this.pack();
-		this.text = this.textSav;
-		if (this.active) 
-			this.start();
 	}
 
 	draw(ctx) {
-		if (!this.active || isNaN(this.time) || this.time < 0) return;
+		if (!this.visible) return;
 		this.text = this.genText();
 		super.draw(ctx);
 		this.text = this.textSav;
 	}
 
 	genText() {
-		return `${this.text} ${secondsToString(this.time)}`;
+		return `${this.text} ${secondsToString(Math.ceil(this.time))}`;
 	}
 
 	pack() {
@@ -658,62 +655,29 @@ class Timer extends Text {
 	}
 
 	pause() {
-		if (this.timeout) {
-			clearTimeout(this.timeout);
-			this.timeout = null;
-		}
+        this.active = false;
 	}
-
-	set(time) {
-		this.timeSav = time ? time : -1;
-	}
-
-	setAndStart(time) {
-		this.set(time);
-		this.start(time);
-	}
-
-	// Can be called with no arguments, in which case restart from saved time
-	// Can also be called with 'off', in which case stop
+    
+    reset() {
+        this.time = this.timeSav;
+    }
+    
 	start(time) {
-		if (this.timeout) {
-			clearTimeout(this.timeout);
-			this.timeout = null;
-		}
-		if (time) {
-			this.time = time;
-		} else if (time < 0 || isNaN(time)) { 
-			this.time = -1;
-		} else {
-			this.time = this.timeSav;
-		}
-		if (this.time > 0) {
-			this.active = true;
-			this.tick();
-		} else {
-			this.active = false;
-		}
+        if (time) {
+            this.time = time;
+        }
+        this.active = true;
 	}
 
 	tick() {
-		this.time--;
-		if (this.time >= 0) {
-			const me = this;
-			this.timeout = setTimeout(e => me.tick(), 1000);
-		} else {
-			this.timeout = null;
-			this.active = false;
-			if (!isNaN(this.time)) { // TODO find out why I put isNaN here
-				this.cb(this);
-				if (this.loop) {
-					this.start(0);
-				}
-			}
-		}
-		this.parent.packAll();
-	}
-
-	unpause() {
-		if (this.active && !this.timeout) this.tick();
+        if (this.active) {
+            this.time -= 1/60;
+            if (this.time < 0) {
+                if (!this.loop) this.active = false;
+                this.time = this.timeSav;
+				this.cb();
+            }
+            this.parent.packAll();
+        }
 	}
 }

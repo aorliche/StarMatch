@@ -12,163 +12,30 @@ let game;
 let deferred = {game: null};
 
 window.addEventListener('load', e => {
-	const score = document.querySelector('#score');
-	const type = document.querySelector('#type');
-	const button = document.querySelector('#remake');
-	const layersSlider = document.querySelector('#layers');
-	const layersSpan = document.querySelector('#layersSpan');
-	const sizeSlider = document.querySelector('#size');
-	const sizeSpan = document.querySelector('#sizeSpan');
-	const angleSlider = document.querySelector('#angle');
-	const angleSpan = document.querySelector('#angleSpan');
-	const difficultySlider = document.querySelector('#difficulty');
-	const difficultySpan = document.querySelector('#difficultySpan');
-	const chainsBox = document.querySelector('#chains');
-	const playButton = document.querySelector('#play');
-	const squareLevel = document.querySelector('#squareLevel');
-	const triLevel = document.querySelector('#triLevel');
-	const hexLevel = document.querySelector('#hexLevel');
-	const swapTileSound = document.querySelector('#swapTileSound');
-	const swapTileSoundSpan = document.querySelector('#swapTileSoundSpan');
 	const canvas = document.querySelector('#game');
 	const ctx = canvas.getContext('2d');
 	const hideUnhide = document.querySelector('#hideUnhide');
 	const soundsDiv = document.querySelector('#soundsDiv');
-	//let circles = [];
-
-	hideUnhide.addEventListener('click', e => {
-		e.preventDefault();
-		if (soundsDiv.vis) {
-			soundsDiv.style.visibility = 'hidden';
-			soundsDiv.vis = false;
-		} else {
-			soundsDiv.style.visibility = 'visible';
-			soundsDiv.vis = true;
-		}
-	});
-	
-	function setParams() {
-		const params = {
-			'ptype': type.options[type.selectedIndex].value,
-			'size': parseInt(size.value),
-			'layers': parseInt(layers.value),
-			'angle': parseInt(angleSlider.value)*Math.PI/180
-		};
-		game.displayChains = chainsBox.checked;
-		game.params = params;
-	}
-
-	layersSlider.addEventListener('input', e => {
-		layersSpan.innerText = layersSlider.value;
-	});
-
-	sizeSlider.addEventListener('input', e => {
-		sizeSpan.innerText = sizeSlider.value;
-	});
-	
-	angleSlider.addEventListener('input', e => {
-		angleSpan.innerText = angleSlider.value;
-	});
-	
-	difficultySlider.addEventListener('input', e => {
-		difficultySpan.innerText = difficultySlider.value;
-	});
-
-	button.addEventListener('click', e => {
-		game.startLevel(1);
-	});
-
-	playButton.addEventListener('click', e => {
-		/*e.preventDefault();
-		if (playButton.innerText == 'Play') {
-			initLoops();
-			playButton.innerText = 'Stop';
-		} else if (playButton.innerText == 'Stop') {
-			if (loop) clearInterval(loop);
-			if (win) clearInterval(win);
-			playButton.innerText = 'Play';
-		} else if (playButton.innerText == 'New Game') {
-			init();
-			initLoops(true);
-			playButton.innerText = 'Stop';
-		}*/
-	});
-
-	chainsBox.addEventListener('change', e => {
-		game.displayChains = chainsBox.checked;
-		//game.repaint();
-	});
-
-	function setValues(layers, size, angle) {
-		layersSlider.value = layers;
-		layersSpan.innerText = layers;
-		sizeSlider.value = size;
-		sizeSpan.innerText = size;
-		angleSlider.value = angle
-		angleSpan.innerText = angle;
-	}
-
-	squareLevel.addEventListener('change', e => {
-		const lvl = parseInt(e.target.value);
-		if (!lvl) return;
-		triLevel.selectedIndex = 0;
-		hexLevel.selectedIndex = 0;
-		if (lvl == 1) setValues(3, 60, 0);
-		if (lvl == 2) setValues(4, 60, 0);
-		if (lvl == 3) setValues(5, 60, 0);
-		type.selectedIndex = 2;
-		if (game) {
-			setParams();
-			game.startLevel((lvl-1)*3+1);
-		}
-	});
-	
-	triLevel.addEventListener('change', e => {
-		const lvl = parseInt(e.target.value);
-		if (!lvl) return;
-		squareLevel.selectedIndex = 0;
-		hexLevel.selectedIndex = 0;
-		if (lvl == 1) setValues(2, 75, 0);
-		if (lvl == 2) setValues(3, 75, 0);
-		if (lvl == 3) setValues(4, 75, 0);
-		type.selectedIndex = 1;
-		if (game) {
-			setParams();
-			game.startLevel((lvl-1)*3+3);
-		}
-	});
-	
-	hexLevel.addEventListener('change', e => {
-		const lvl = parseInt(e.target.value);
-		if (!lvl) return;
-		squareLevel.selectedIndex = 0;
-		triLevel.selectedIndex = 0;
-		if (lvl == 1) setValues(4, 40, 30);
-		if (lvl == 2) setValues(5, 40, 30);
-		if (lvl == 3) setValues(6, 40, 30);
-		type.selectedIndex = 0;
-		if (game) {
-			setParams();
-			game.startLevel((lvl-1)*3+2);
-		}
-	});
-
-	type.addEventListener('change', e => {
-		playButton.innerText = 'Play';
-		if (e.target.value == 'hex') {
-			setValues(5, 40, 30);
-		} else if (e.target.value == 'tri') {
-			setValues(2, 65, 0);
-		} else if (e.target.value == 'square') {
-			setValues(3, 45, 0);
-		}
-		if (game) {
-			setParams();
-			game.startLevel(1);
-		}
-	});
+    
+    // Temporary loading screen
+    let dotCounter = 0;
+    ctx.font = '24px Bahnschrift';
+    let text = 'Loading.';
+    let measure = ctx.measureText(text);
+    function loadingScreen() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#fff';
+        text = 'Loading' + '.'.repeat((dotCounter++ % 3) + 1);
+        ctx.fillText(text, canvas.width/2-measure.text/2, canvas.height/2);
+        if (!game) {
+            setTimeout(loadingScreen, 500);
+        }
+    }
+    loadingScreen();
 
 	// Gamepad
+    // I'm not sure what deferred does exactly
 	window.addEventListener("gamepadconnected", e => {
         function addPad() {
             if (!deferred.game) setTimeout(addPad, 100);
@@ -187,22 +54,14 @@ window.addEventListener('load', e => {
         }
 	});	
 
-	function updatePage() {
-		const subLvl = Math.floor(game.level/3);
-		const select = [squareLevel, hexLevel, triLevel][game.level%3];
-		select.selectedIndex = subLvl+1;
-		select.dispatchEvent(new Event('change'));
-	}
-
 	// Load images
+    // Game created after all images are loaded
 	// 6 astrons, 3 ice counter, 1 blast counter, 24 astron characters, 1 title, 1 controller, 8 dragon heads, 2 blast, 2 frost line
 	let numLoaded = 0;
 	function loadFn() {
 		if (++numLoaded == 6+3+1+24+1+1+8+2+2) {
-			game = new Game(canvas, updatePage);
+			game = new Game(canvas);
             deferred.game = game;
-			setParams();
-			//game.repaint();
 			initSounds();
 		}
 	}
@@ -245,10 +104,20 @@ window.addEventListener('load', e => {
 		blastImgs.at(-1).addEventListener('load', loadFn);
 		blastImgs.at(-1).src = key;
 	});
+    
+    // Sounds
 
-	triLevel.selectedIndex = 1;
-	triLevel.dispatchEvent(new Event('change'));
-
+	hideUnhide.addEventListener('click', e => {
+		e.preventDefault();
+		if (soundsDiv.style.display == 'block') {
+			soundsDiv.style.display = 'none';
+            hideUnhide.innerText = 'Show sound interface';
+		} else {
+			soundsDiv.style.display = 'block';
+            hideUnhide.innerText = 'Hide sound interface';
+		}
+	});
+    
 	const baseUrl = new URL(window.location.href);
 
 	function initSounds() {
@@ -303,12 +172,13 @@ window.addEventListener('load', e => {
 		}
 	}
 
+	// Mouse inputs
+
 	['click', 'mousemove', 'mouseout', 'mousedown', 'mouseup'].forEach(type => {
 		canvas.addEventListener(type, e => {
 			if (game) {
 				const p = getCursorPosition(canvas, e);
 				game[type](p);
-				//game.repaint();
 			}
 		});
 	});
@@ -318,7 +188,6 @@ window.addEventListener('load', e => {
 		const p = getCursorPosition(canvas, e);
 		if (game) {
 			game.rightClick(p);
-			//game.repaint();	
 			return false;
 		}
 	});

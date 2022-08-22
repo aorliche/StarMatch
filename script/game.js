@@ -1,6 +1,7 @@
 class Game extends MouseListener {
-	constructor(canvas, updatePage) {
+	constructor(canvas) {
 		super();
+        this.timers = [];
 		this.level = 0;
 		this.canvas = canvas;
 		this.dim = {w: canvas.width, h: canvas.height};
@@ -12,7 +13,6 @@ class Game extends MouseListener {
 		this.grid = null;
 		this.animator = new Animator(this);
 		this.paused = true;
-		this.updatePage = updatePage;
 		this.bg = new StarField(this.dim);
 		this.sounds = new Sounds(this);
 		this.animator.start();
@@ -38,16 +38,18 @@ class Game extends MouseListener {
 	rightClick(p) {this.action('rightClick', p);}
 
 	newGame() {
-		this.level = 0;
 		const moves = this.main.find('Moves');
 		moves.count = 0;
 		moves.parent.packAll();
-		this.requestNextLevel();
+		this.startLevel(1);
 		this.sounds.playMusic('game');
+		this.visible = this.main;
 	}
     
-    notify(text) {
-        const notice = new Notification({text: text, fontSize: 24, fontWeight: 'Bold', color: '#f66'}, this);
+    notify(text, params) {
+        const notice = (params) ?
+            new Notification({text: text, ...params}, this) :
+            new Notification({text: text, fontSize: 24, fontWeight: 'Bold', color: '#f66'}, this);
         if (this.notifications.length > 0 && 
             notice.pos.y - this.notifications.at(-1).pos.y < 40) {
             notice.pos.y = this.notifications.at(-1).pos.y + 40;
@@ -68,21 +70,29 @@ class Game extends MouseListener {
 		this.bg.draw(this.ctx);
 		this.visible.draw(this.ctx);
 	}
-	
-	requestNextLevel() {
-		this.updatePage();
-	}
 
 	startLevel(level) {
+        this.params = levels.filter(lvl => lvl.level == level)[0];
 		this.level = level;
 		if (this.level == 1) {
 			this.main.resetPowerups();
 		}
 		this.animator.gridInfos = [];
 		this.main.find('Level').count = this.level;
-		this.main.find('Tectonic Activity').setAndStart(parseInt(this.menu.find('Tectonic Activity').value));
+		// Stupid timer stuff
+		const t = parseInt(this.menu.find('Tectonic Activity').value);
+		const timer = this.main.find('Tectonic Activity');
+		if (isNaN(t)) {
+			timer.visible = false;
+			timer.reset();
+			timer.pause();
+		} else {
+			timer.timeSav = t;
+			timer.reset();
+			timer.start();
+		}
+		this.levelOver = false;
 		this.grid = new HexGrid(this, this.gridDim);
-		this.unpause();
 	}
 
 	showMenu() {
@@ -147,28 +157,49 @@ class Game extends MouseListener {
 		this.bg.tick();
 		if (this.visible.tick)
 			this.visible.tick();
+        this.timers.forEach(t => {
+           if (t.active) t.tick(); 
+        });
 	}
 
 	unpause() {
 		this.visible = this.main;
 		this.paused = false;
-		this.main.find('Tectonic Activity').unpause();
+		this.main.find('Tectonic Activity').start();
 		this.animator.start();
 	}
 
 	winLevel() {
+        this.levelOver = true;
 		this.grid.selected = null;
 		this.animator.gridInfos = [];
-		this.main.find('Tectonic Activity').start();
+		this.main.find('Tectonic Activity').pause();
 		this.sounds.stopAll();
 		this.sounds.play('winlevel');
 		if (this.level < 9) {
-			setTimeout(e => this.requestNextLevel(), 500);
+            this.notify(
+                "Level cleared!",
+                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+            this.notify(
+                "You see some polygons in the distance...",
+                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+			setTimeout(e => this.startLevel(this.level+1), 6000);
 		} else {
-			this.animator.infos = [];
-			this.paused = true;
-			this.level = 0;
-			this.visible = this.title;
+            this.notify(
+                "Hooray!",
+                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+            this.notify(
+                "You have cleared this sector!",
+                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+			this.notify(
+				"But the astrons might be back...",
+				{fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+            setTimeout(e => {
+                this.animator.infos = [];
+                this.paused = true;
+                this.level = 0;
+                this.visible = this.title;
+            }, 6000);
 		}
 	}
 }

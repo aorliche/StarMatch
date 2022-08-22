@@ -93,6 +93,9 @@ class MainScreen extends Screen {
 		buttons1.packAll();
 
 		this.resetPowerups();
+		
+		// Register tectonic activity as a timer
+		this.game.timers.push(this.find('Tectonic Activity'));
 	}
 
 	action(type, p) {
@@ -251,7 +254,7 @@ class MenuScreen extends Screen {
 
 		this.add(vert1);
 		vert1.packAll();
-		
+
 		this.restore();
 	}
 	
