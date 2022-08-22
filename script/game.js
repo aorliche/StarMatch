@@ -72,6 +72,7 @@ class Game extends MouseListener {
 	}
 
 	startLevel(level) {
+		this.paused = false;
         this.params = levels.filter(lvl => lvl.level == level)[0];
 		this.level = level;
 		if (this.level == 1) {

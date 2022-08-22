@@ -325,7 +325,6 @@ class HexGrid extends MouseListener {
 						cur.chains = [...chain[j-1]];
 						addLoc(this.polyMap, [...cur.chains], cur);
 						addLoc(this.polyMap, [...prev.chains], prev);
-						console.log(prev);
 						this.animator.fall(prev, {...cur.center});
 						cur.center = {...prev.center};
 						changed = true;

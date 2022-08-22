@@ -75,7 +75,7 @@
 	}
 ?>
 </div>
-<div id='hidden' style='display: none;'>
+<div id='hidden' style='visibility: hidden;'>
 	<div class='a'>Hello</div>
 	<div class='b'>Playing around</div>
 	<div class='c'>With getting fonts to load</div>
