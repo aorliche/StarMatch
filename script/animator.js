@@ -75,7 +75,6 @@ class FreezeLine {
 class Animator {
 	constructor(game) {
 		this.game = game;
-		this.grid = game.grid;
 		this.infos = [];
 		this.gridInfos = [];
 		this.arrived = [];
@@ -115,13 +114,40 @@ class Animator {
 		}
 	}
 
-	moveGrid(delta, speed) {
+    levelStartAnimation() {
+        let miny = this.game.grid.dim.h;
+        this.game.grid.polys.forEach(p => {
+            if (!p.empty) {
+                if (p.center.y < miny) miny = p.center.y;
+            }
+        });
+        let mult = 0.5;
+        if (this.game.grid.ptype == 'hex') mult = 1;
+        else if (this.game.grid.ptype == 'tri') mult = Math.sqrt(3)/2;
+        const delta = {x: 0, y: this.game.grid.dim.h-miny+mult*this.game.grid.size};
+        this.moveGridInstantly(delta);
+        this.moveGrid({x: -delta.x, y: -delta.y}, 1, 'levelStart');
+    }
+
+	moveGrid(delta, speed, special) {
 		const theta = Math.atan2(delta.y, delta.x);
 		const sx = speed*Math.cos(theta);
 		const sy = speed*Math.sin(theta);
-		this.gridInfos.push({dx: delta.x, dy: delta.y, sx: sx, sy: sy, special: 'expandBelow'});
+        if (!special) special = 'expandBelow';
+		this.gridInfos.push({dx: delta.x, dy: delta.y, sx: sx, sy: sy, special: special});
 		this.start();
 	}
+
+    moveGridInstantly(delta) {
+        this.game.grid.polys.forEach(hex => {
+            hex.translate(delta.x, delta.y);
+        });
+        this.game.grid.fastLoc.forEach(p => {
+            p.x += delta.x;
+            p.y += delta.y;
+        });
+        this.game.grid.center = {x: this.game.grid.center.x + delta.x, y: this.game.grid.center.y + delta.y};
+    }
 
 	restock(hex, to) {
 		hex.center = {x: to.x+300*(Math.random()-0.5), y: -200};
@@ -196,6 +222,7 @@ class Animator {
 				}
 				return true;
 			});
+            // Moving entire screen
 			me.gridInfos = me.gridInfos.filter(ginfo => {
 				let sx = ginfo.sx; 
 				let sy = ginfo.sy; 
@@ -215,6 +242,9 @@ class Animator {
 				ginfo.dx -= sx;
 				ginfo.dy -= sy;
 				if (snap) {
+                    if (ginfo.special == 'levelStart') {
+                        me.game.grid.inputOff = false;
+                    }
 					return false;
 				}
 				return true;

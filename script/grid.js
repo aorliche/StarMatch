@@ -1,4 +1,6 @@
 // TODO worst case code about tiles getting stuck in weird positions
+// TODO triangle fixed bug where, using mouse, a triangle can be left floating in the air
+// TODO allow gamepad menu access during start level animation
 
 class HexGrid extends MouseListener {
 	constructor(game, dim) { 
@@ -44,6 +46,7 @@ class HexGrid extends MouseListener {
 		this.saveBorder();
 		// Clean up board
 		this.initCleanBoard();
+        // Start animation called in game.js because of instantiation order requirements
 	}
 
 	adjacent(hex1, hex2) {
@@ -106,6 +109,7 @@ class HexGrid extends MouseListener {
     }
 
 	click(p) {
+        if (this.inputOff) return;
 		const hex = this.findPoly(p);
         // Deselect
 		if (!hex || hex.moving || (this.selected && hex == this.selected)) {
@@ -144,6 +148,7 @@ class HexGrid extends MouseListener {
 
     // Freeze and unfreeze
 	rightClick(p) {
+        if (this.inputOff) return;
 		const hex = this.findPoly(p);
 		if (hex && !hex.empty && !hex.moving) {
 			if (!hex.frozen && this.game.main.find('Freezes').count > 0) {
@@ -940,6 +945,7 @@ class HexGrid extends MouseListener {
 	}
 
 	pressButtons(evt) {
+        if (this.inputOff) return;
         if (!this.game.pad || !this.game.padState.using) return;
 		if (this.polys.length > 0) {
             if (!this.selected || this.selected.cleared) 

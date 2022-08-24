@@ -94,6 +94,8 @@ class Game extends MouseListener {
 		}
 		this.levelOver = false;
 		this.grid = new HexGrid(this, this.gridDim);
+        this.grid.inputOff = true;
+        this.animator.levelStartAnimation();
 	}
 
 	showMenu() {
@@ -180,21 +182,21 @@ class Game extends MouseListener {
 		if (this.level < 9) {
             this.notify(
                 "Level cleared!",
-                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
             this.notify(
                 "You see some polygons in the distance...",
-                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
-			setTimeout(e => this.startLevel(this.level+1), 6000);
+                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
+			setTimeout(e => this.startLevel(this.level+1), 1000);
 		} else {
             this.notify(
                 "Hooray!",
-                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
             this.notify(
                 "You have cleared this sector!",
-                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
 			this.notify(
 				"But the astrons might be back...",
-				{fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*30, moving: false});
+				{fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
             setTimeout(e => {
                 this.animator.infos = [];
                 this.paused = true;
