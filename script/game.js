@@ -50,8 +50,10 @@ class Game extends MouseListener {
         const notice = (params) ?
             new Notification({text: text, ...params}, this) :
             new Notification({text: text, fontSize: 24, fontWeight: 'Bold', color: '#f66'}, this);
-        if (this.notifications.length > 0 && 
-            notice.pos.y - this.notifications.at(-1).pos.y < 40) {
+        if ((!notice.announce || 
+                (notice.announce && this.notifications.at(-1).announce)) 
+            && this.notifications.length > 0 
+            && notice.pos.y - this.notifications.at(-1).pos.y < 40) {
             notice.pos.y = this.notifications.at(-1).pos.y + 40;
         }
         this.notifications.push(notice);
@@ -182,21 +184,21 @@ class Game extends MouseListener {
 		if (this.level < 9) {
             this.notify(
                 "Level cleared!",
-                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
+                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
             this.notify(
                 "You see some polygons in the distance...",
-                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
-			setTimeout(e => this.startLevel(this.level+1), 1000);
+                {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
+			setTimeout(e => this.startLevel(this.level+1), 4000);
 		} else {
             this.notify(
                 "Hooray!",
-                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
+                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
             this.notify(
                 "You have cleared this sector!",
-                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
+                {fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
 			this.notify(
 				"But the astrons might be back...",
-				{fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, moving: false});
+				{fontSize: 36, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
             setTimeout(e => {
                 this.animator.infos = [];
                 this.paused = true;
