@@ -119,11 +119,13 @@ class Box extends Control {
 
 	draw(ctx, debug) {
 		if (this.bgColor) {
+            ctx.save();
 			if (this.bgAlpha) 
 				ctx.globalAlpha = this.bgAlpha;
 			ctx.fillStyle = this.bgColor;
 			ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
-			ctx.globalAlpha = 1;
+			//ctx.globalAlpha = 1;
+            ctx.restore();
 		}
 		this.children.forEach(c => c.draw(ctx, debug));
 		if (debug) {
@@ -216,7 +218,7 @@ class Box extends Control {
 	}
     
     remove(control) {
-        this.controls.splice(this.controls.indexOf(control), 1);
+        this.children.splice(this.children.indexOf(control), 1);
     }
 
 	updateOver(over, p) {

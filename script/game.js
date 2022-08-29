@@ -10,6 +10,7 @@ class Game extends MouseListener {
         this.main = new MainScreen(this); // requires menu non-null
         this.config = new PadConfigScreen(this);
 		this.title = new TitleScreen(this);
+        this.transition = new TransitionScreen(this);
 		this.grid = null;
 		this.animator = new Animator(this);
 		this.paused = true;
@@ -182,13 +183,22 @@ class Game extends MouseListener {
 		this.sounds.stopAll();
 		this.sounds.play('winlevel');
 		if (this.level < 9) {
-            this.notify(
+            /*this.notify(
                 "Level cleared!",
                 {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
             this.notify(
                 "You see some polygons in the distance...",
                 {fontSize: 28, fontWeight: 'Bold', color: '#fff', lifetime: 6*60, announce: true});
-			setTimeout(e => this.startLevel(this.level+1), 4000);
+			setTimeout(e => this.startLevel(this.level+1), 4000);*/
+            this.transition.reset();
+            this.transition.message = ["Level cleared!", "You see some polygons in the distance..."];
+            this.visible = this.transition;
+            /*setTimeout(e => {
+                this.startLevel(this.level+1);
+            }, 5000);
+            setTimeout(e => {
+                this.visible = this.main;
+            }, 10000);*/
 		} else {
             this.notify(
                 "Hooray!",
