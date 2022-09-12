@@ -1,4 +1,17 @@
 
+// stops in the form of [percent, color]
+class ControlGradient {
+    constructor(stops) {
+        this.stops = stops;
+    }
+
+    compile(ctx, p0, p1) {
+        const grad = ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
+        this.stops.forEach(stop => grad.addColorStop(stop[0], stop[1]));
+        return grad;
+    }
+}
+
 // Control is the base class for all
 // Text is used by everything
 // These must be non-alphabetical
@@ -22,6 +35,8 @@ class Control extends MouseListener {
 		this.name = params.name ?? null;
 		this.bgColor = params.bgColor ?? null;
 		this.bgAlpha = params.bgAlpha ?? null;
+        this.strokeStyle = params.strokeStyle ?? null;
+        this.lineWidth = params.lineWidth ?? null;
     }
 
 	// TODO Dangerous!?
@@ -46,6 +61,9 @@ class Control extends MouseListener {
 		}
 		return yes;
     }
+
+    // Expander doesn't have draw
+    draw(ctx) {}
 
 	find(name) {
 		if (this.name) {
@@ -93,6 +111,15 @@ class Text extends Control {
 	}
 }
 
+// Takes up all available space in box
+class Expander extends Control {
+    constructor() {
+        super({});
+        this.pos = {x: 0, y: 0};
+        this.dim = {w: 0, h: 0};
+    }
+}
+
 class Box extends Control {
     constructor(params) {
         super(params);
@@ -122,11 +149,26 @@ class Box extends Control {
             ctx.save();
 			if (this.bgAlpha) 
 				ctx.globalAlpha = this.bgAlpha;
-			ctx.fillStyle = this.bgColor;
+            if (this.bgColor instanceof ControlGradient) {
+                let p1;
+                const p0 = {x: this.pos.x, y: this.pos.y};
+                if (this instanceof HBox) {
+                    p1 = {x: this.pos.x+this.dim.w, y: this.pos.y};
+                } else {
+                    p1 = {x: this.pos.x, y: this.pos.y+this.dim.h};
+                }
+                ctx.fillStyle = this.bgColor.compile(ctx, p0, p1);
+            } else {
+                ctx.fillStyle = this.bgColor;
+            }
 			ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
-			//ctx.globalAlpha = 1;
             ctx.restore();
 		}
+        if (this.strokeStyle) {
+            ctx.strokeStyle = this.strokeStyle;
+            ctx.lineWidth = this.lineWidth ?? 1;
+            ctx.strokeRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+        }
 		this.children.forEach(c => c.draw(ctx, debug));
 		if (debug) {
 			ctx.lineWidth = 1;
@@ -154,10 +196,10 @@ class Box extends Control {
 		if (pass === 0)
 			this.children.forEach(c => {
 				if (c.pack) c.pack(0);
-				if (!c.dim.w || !c.dim.h) {
+				/*if (!c.dim.w || !c.dim.h) {
 					console.log(c);
 					throw new Error('bad dim');
-				}
+				}*/
 			});
         if (this instanceof HBox) {
 			w = 0;
@@ -209,7 +251,21 @@ class Box extends Control {
 		if (pass === 0 && (!this.dim.w || !this.dim.h)) {
 			this.dim.w = w;
 			this.dim.h = h;
-		}
+		} else if (pass === 0) {
+            const expand = this.children.filter(c => c instanceof Expander);
+            if (expand.length > 0) {
+                if (this instanceof HBox) {
+                    const ew = this.dim.w-this.children.reduce((prev, c) => 
+                        prev+c.dim.w+c.margin.left+c.margin.right, 0);
+                    expand.forEach(e => e.dim.w = ew/expand.length);
+                }
+                if (this instanceof VBox) {
+                    const eh = this.dim.h-this.children.reduce((prev, c) =>
+                        prev+c.dim.h+c.margin.top+c.margin.bottom, 0);
+                    expand.forEach(e => e.dim.h = eh/expand.length);
+                }
+            }
+        }
     }
 
 	packAll() {

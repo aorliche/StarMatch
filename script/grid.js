@@ -102,9 +102,9 @@ class HexGrid extends MouseListener {
             blastCounter.count--;
             if (this.polys.filter(p => !p.empty).length == 0) {
                 this.game.winLevel();
-            } else if (!this.solveable()) {
+            } /*else if (!this.solveable()) {
                 this.scheduleExpand();
-            }
+            }*/
         }
     }
 
@@ -134,11 +134,11 @@ class HexGrid extends MouseListener {
 				this.clear();
 				this.fall();
 				// We could have won at this point
-				if (this.game.visible == this.game.main) {
+				/*if (this.game.visible == this.game.main) {
 					const moves = this.game.main.find('Moves');
 					moves.count++;
 					moves.parent.packAll();
-				}
+				}*/
 			}
         // Reselect or deselect if empty
 		} else {
@@ -208,9 +208,9 @@ class HexGrid extends MouseListener {
 			} 
 		}
 		// Called in animator, allows double expand due to unsolveability
-		if (!this.solveable()) {
+		/*if (!this.solveable()) {
 			this.scheduleExpand();
-		}
+		}*/
 	}
     
     clearSingle(hex) {
@@ -1034,13 +1034,13 @@ class HexGrid extends MouseListener {
 		}
 	}
 
-	scheduleExpand() {
+	/*scheduleExpand() {
 		if (!this.game.levelOver) {
 			const timer = this.game.main.find('Tectonic Activity');
 			if (!timer.active || (timer.active && timer.time > 5))
 				timer.start(5);
 		}
-	}
+	}*/
 
 	solveable() {
 		for (const astron in this.counter) {

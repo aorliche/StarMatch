@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Grid 2 Test</title>
+<script src='/script/functions.js'></script>
+<script src='/script/test/newgrid.js'></script>
+<script>
+var $ = e => document.querySelector(e);
+var grid;
+
+window.addEventListener('load', e => {
+    const canvas = $('canvas');
+    const ctx = canvas.getContext('2d');
+    for (let i=Math.PI/10; i<Math.PI/8; i+=Math.PI/10) {
+        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'tri', size: 50, angle: i});
+        grid.draw(ctx, 'red');
+    }
+});
+</script>
+</head>
+<body>
+<canvas width='500' height='500'></canvas>
+</body>
+</html>

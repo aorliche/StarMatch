@@ -22,8 +22,8 @@ class Game extends MouseListener {
         this.sounds.playMusic('intro');
 		this.visible = this.title;
         this.notifications = [];
-		this.gridDim = {w: this.dim.w-440, h: this.dim.h-100};
-		this.gridPos = {x: 220, y: 100};
+		this.gridDim = {w: this.dim.w, h: this.dim.h-160};
+		this.gridPos = {x: 0, y: 160};
 	}
 
 	// All mouse actions
@@ -39,9 +39,9 @@ class Game extends MouseListener {
 	rightClick(p) {this.action('rightClick', p);}
 
 	newGame() {
-		const moves = this.main.find('Moves');
+		/*const moves = this.main.find('Moves');
 		moves.count = 0;
-		moves.parent.packAll();
+		moves.parent.packAll();*/
 		this.startLevel(1);
 		this.sounds.playMusic('game');
 		this.visible = this.main;
@@ -62,7 +62,7 @@ class Game extends MouseListener {
 
 	pause() {
 		this.paused = true;		
-		this.main.find('Tectonic Activity').pause();
+		//this.main.find('Tectonic Activity').pause();
 		this.main.find('Menu').hovering = false;
 		this.visible = this.menu;
 	}
@@ -82,9 +82,9 @@ class Game extends MouseListener {
 			this.main.resetPowerups();
 		}
 		this.animator.gridInfos = [];
-		this.main.find('Level').count = this.level;
+		//this.main.find('Level').count = this.level;
 		// Stupid timer stuff
-		const t = parseInt(this.menu.find('Tectonic Activity').value);
+		/*const t = parseInt(this.menu.find('Tectonic Activity').value);
 		const timer = this.main.find('Tectonic Activity');
 		if (isNaN(t)) {
 			timer.visible = false;
@@ -94,7 +94,7 @@ class Game extends MouseListener {
 			timer.timeSav = t;
 			timer.reset();
 			timer.start();
-		}
+		}*/
 		this.levelOver = false;
 		this.grid = new HexGrid(this, this.gridDim);
         this.grid.inputOff = true;
@@ -171,7 +171,7 @@ class Game extends MouseListener {
 	unpause() {
 		this.visible = this.main;
 		this.paused = false;
-		this.main.find('Tectonic Activity').start();
+		//this.main.find('Tectonic Activity').start();
 		this.animator.start();
 	}
 
@@ -179,7 +179,7 @@ class Game extends MouseListener {
         this.levelOver = true;
 		this.grid.selected = null;
 		this.animator.gridInfos = [];
-		this.main.find('Tectonic Activity').pause();
+		//this.main.find('Tectonic Activity').pause();
 		this.sounds.stopAll();
 		this.sounds.play('winlevel');
 		if (this.level < 9) {

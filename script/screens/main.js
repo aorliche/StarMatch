@@ -7,7 +7,8 @@ class MainScreen extends Screen {
 		this.flameTimeout = null;
 		this.freezeTimeout = null;
 		this.blastTimeout = null;
-		this.dragonHeadFire = ['dragonHeadFire', 'DragonHeadFire1', 'DragonHeadFire2'].map(name => images[name]);
+		this.dragonHeadFire = 
+            ['dragonHeadFire', 'DragonHeadFire1', 'DragonHeadFire2'].map(name => images[name]);
 		this.dragonHeadFrost = ['DragonHeadFrost', 'DragonHeadFrost1'].map(name => images[name]);
 		this.dragonHeadBlast = ['DragonHeadBlast1'].map(name => images[name]);
 		this.projectiles = [];
@@ -15,80 +16,93 @@ class MainScreen extends Screen {
 
 		astrons.forEach(t => {
 			const ta = `${t}_a`;
-			this.astrons.push(new Astron({type: t, img: images[ta][0], flamed: images[ta], dim: {w: 95, h: 95}, margin: -5}));
+			this.astrons.push(new Astron(
+                {type: t, img: images[ta][0], flamed: images[ta], dim: {w: 65, h: 65}}));
 		});
 
-		this.astrons[0].margin.top = 20;
-		this.astrons.slice(0,3).forEach(a => a.margin.bottom = -15);
-		this.astrons.at(-1).margin.bottom = 100;
+        // Gradient
+        const astronDragonBoxGrad = new ControlGradient([[0,'#241e3c'],[0.5,'#241e3c'],[1,'#67496f']]);
 
-		const power1 = new VBox({pos: {x: 0, y: 0}, dim: {w: this.dim.w, h: 110}, bgColor: '#241e3c', align: 'center'});
-		const power2 = new HBox({margin: {top: 25, bottom: 0, left: 0, right: 0}, align: 'center'});
-
-		power2.add(new Text({name: 'Btext', text: 'Blasts', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
-			margin: {left: 5, right: 5, top: 0, bottom: 0}}, this.game.ctx));
-		power2.add(new ImageCounter({name: 'Blasts', imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5}));
-		power2.add(new Text({name: 'Ftext', text: 'Freezes', fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, this.game.ctx));
-		power2.add(new ImageCounter({name: 'Freezes', imgs: iceImgs, max: 5, spacing: 5, count: 1, margin: {left: 5, right: 50, top: 5, bottom: 5}}));
-
-		power1.add(power2);
-		power1.add(new Timer({text: 'Tectonic Activity', cb: e => {
-				this.game.grid.expandFromBelow();
-			}, 
-			time: parseInt(this.game.menu.find('Tectonic Activity').value), 
-			loop: true, active: false, margin: 5}, this.game.ctx));
-
-		power1.packAll();
-		this.add(power1);
-
-		const level1 = new VBox({pos: {x: this.dim.w-240, y: 0}, bgColor: '#241e3c', align: 'center'});
-		const level2 = new VBox({align: 'center'});
-
-		const levelC = new TextCounter({name: 'Level', text: "LEVEL ", fontFamily: fontFamily2, fontWeight: 'Bold', fontSize: 28,
-			count: 1, dim: {w: 120, h: 40}, margin: {top: 30, bottom: 10, right: 0, left: 0}}, this.game.ctx);
-		const speed = new Text({name: 'Speed', text: `Speed ${this.game.menu.speedString}`, dim: {w: 120, h: 20},
-			fontFamily: fontFamily3, fontWeight: 'Bold', margin: {top: 5, bottom: 5, left: 0, right: 0}}, this.game.ctx);
-		const movesC = new TextCounter({name: 'Moves', text: 'Moves: ', fontWeight: 'Bold', count: 0, dim: {w: 120, h: 20},
-			margin: {bottom: 15, top: 0, left: 0, right: 0}}, this.game.ctx);
-		const dragon = new ImageControl({name: 'Dragon', img: images['dragonHead'], dim: {w: 150, h: 150}, 
-			bgColor: '#736383',
-			margin: {top: 50, bottom: this.dim.h, left: 50, right: 50}});
-
-		level2.add(levelC);
-		level2.add(speed);
-		level2.add(movesC);
-
-		level1.add(level2);
-		level1.add(dragon);
-
-		level1.packAll();
-		this.add(level1);
-
-		const buttons1 = new VBox({pos: {x: 0, y: 0}, bgColor: '#241e3c', align: 'center'});
+        // Boxes
+        const container = new VBox({pos: {x: 0, y: 0}, dim: {...this.dim}, align: 'center'});
+        const hudBox = new HBox({dim: {w: this.dim.w, h: 90}, 
+            bgColor: '#241e3c', bgAlpha: 0.8, strokeStyle: '#fff', lineWidth: 1});
+        const astronsDragonBox = new HBox({margin: {top: 0, left: 20, right: 0, bottom: 0},
+            bgColor: astronDragonBoxGrad, bgAlpha: 0.8, align: 'center', strokeStyle: '#fff', lineWidth: 1,
+            dim: {w: this.dim.w, h: 70}});
+        const levelBox = new VBox({margin: 20, align: 'center'});
+        const freezesBlastsGoalBox = new VBox({align: 'center'});
+        const freezesBlastsBox = new HBox({margin: {top: -10, bottom: 5, left: 0, right: 0}, align: 'center'});
+        const menuUnfreezeBox = new VBox({margin: 20, align: 'center'});
+	
+        // Components	
+        const levelCounter = new TextCounter({name: 'Level', text: "LEVEL ", 
+            fontFamily: fontFamily2, fontWeight: 'Bold', fontSize: 24, margin: 10,
+			count: 1}, this.game.ctx);
+        const blastsText = new Text({name: 'Btext', text: 'Blasts', 
+            fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', 
+			}, this.game.ctx);
+		const blastsCounter = new ImageCounter({name: 'Blasts', 
+            imgs: blastImgs, max: 5, spacing: 5, count: 1, margin: 5});
+		const freezesText = new Text({name: 'Ftext', text: 'Freezes', 
+            fontSize: 18, fontFamily: fontFamily3, fontWeight: 'Bold', margin: 5}, 
+            this.game.ctx);
+		const freezesCounter = new ImageCounter({name: 'Freezes', 
+            imgs: iceImgs, max: 5, spacing: 5, count: 1});
+        const goalText = new Text({name: 'GoalText', text: 'Goal: Match three or more astrons!',
+            fontSize: 18, fontFamily: fontFamily3,
+            }, this.game.ctx);
+		const menuButton = new Button({text: 'Menu',
+			color: '#9654b6', hoverColor: '#c691e5', margin: {top: 0, bottom: 10, left: 0, right: 20},
+			cb: e => {
+				this.game.showMenu();
+			}, fontSize: 28, fontWeight: 'Bold', fontFamily: fontFamily2, 
+            fill: false, lineWidth: 0}, this.game.ctx);
+		const unfreezeAllButton = new Button({text: 'Unfreeze All',
+			color: '#6898e6', hoverColor: '#abc8f4', margin: {top: 0, bottom: 0, left: 0, right: 20},
+			cb: e => {
+				this.game.showMenu();
+			}, fontSize: 20, fontWeight: '', fontFamily: fontFamily3, 
+            fill: false, lineWidth: 0}, this.game.ctx);
+        const dragon = new ImageControl({name: 'Dragon', img: images['dragonHead'], dim: {w: 65, h: 65}});
 		
-		buttons1.add(new Button({text: 'Menu', dim: {w: 220, h: 40},
-			color: '#9954b6', hoverColor: '#c691e5', margin: {top: 20, bottom: -10, left: 0, right: 0}, 
-			cb: e => {
-				this.game.showMenu();
-			}, fontSize: 28, fontWeight: 'Bold', fontFamily: fontFamily2, fill: false, lineWidth: 0}, this.game.ctx));
-		buttons1.add(new Button({text: 'Unfreeze All', dim: {w: 220, h: 30},
-			color: '#6898e6', hoverColor: '#abc8f4', margin: {top:10, bottom: 20, left: 0, right: 0}, 
-			cb: e => {
-				this.game.showMenu();
-			}, fontSize: 20, fontWeight: '', fontFamily: fontFamily3, fill: false, lineWidth: 0}, this.game.ctx));
+        // Fill boxes with components
+        this.astrons.forEach(a => astronsDragonBox.add(a));
+        astronsDragonBox.add(new Expander());
+        astronsDragonBox.add(dragon);
 
-		this.add(buttons1);
+        menuUnfreezeBox.add(menuButton);
+        menuUnfreezeBox.add(unfreezeAllButton);
 
-		const astrons1 = new VBox({align: 'center', bgColor: '#736383', margin: 0});
-		this.astrons.forEach(a => astrons1.add(a));
+        freezesBlastsBox.add(blastsText);
+        freezesBlastsBox.add(blastsCounter);
+        freezesBlastsBox.add(new Expander());
+        freezesBlastsBox.add(freezesText);
+        freezesBlastsBox.add(freezesCounter);
 
-		buttons1.add(astrons1);
-		buttons1.packAll();
+        freezesBlastsGoalBox.add(freezesBlastsBox);
+        freezesBlastsGoalBox.add(goalText);
+
+        levelBox.add(new Expander());
+        levelBox.add(levelCounter);
+        levelBox.add(new Expander());
+
+        hudBox.add(levelBox);
+        hudBox.add(new Expander());
+        hudBox.add(freezesBlastsGoalBox);
+        hudBox.add(new Expander());
+        hudBox.add(menuUnfreezeBox);
+
+        container.add(hudBox);
+        container.add(astronsDragonBox);
+
+        this.add(container);
+        this.packAll();
 
 		this.resetPowerups();
 		
 		// Register tectonic activity as a timer
-		this.game.timers.push(this.find('Tectonic Activity'));
+		//this.game.timers.push(this.find('Tectonic Activity'));
 	}
 
 	action(type, p) {
@@ -122,7 +136,7 @@ class MainScreen extends Screen {
 		this.game.grid.draw(ctx);
 		this.game.notifications.forEach(n => n.draw(ctx));
 		ctx.translate(-dx, -dy);
-		this.freezeLines.forEach(line => line.draw(ctx));
+		//this.freezeLines.forEach(line => line.draw(ctx));
 		super.draw(ctx);
 		this.projectiles.forEach(p => p.draw(ctx));
 		/*const dragon = this.find('Dragon');

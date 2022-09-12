@@ -185,7 +185,7 @@ function argmin(arr) {
 	return min;
 }
 
-function drawCircle(ctx, c, r, color) {
+function fillCircle(ctx, c, r, color) {
 	ctx.fillStyle = color;
 	ctx.beginPath();
 	ctx.arc(c.x, c.y, r, 0, 2*Math.PI);
@@ -236,4 +236,26 @@ function repeat(what, n) {
 
 function remove(arr, item) {
 	arr.splice(arr.indexOf(item), 1);
+}
+
+function point(x, y) {
+    return {x: x, y: y};
+}
+
+function add(p, q) {
+    return {x: p.x+q.x, y: p.y+q.y};
+}
+
+function sub(p, q) {
+    return {x: p.x-q.x, y: p.y-q.y};
+}
+
+function rotate(p, theta) {
+    const x = p.x*Math.cos(theta)-p.y*Math.sin(theta);
+    const y = p.x*Math.sin(theta)+p.y*Math.cos(theta);
+    return point(x,y);
+}
+
+function pairstr(p) {
+    return `${p[0]},${p[1]}`;
 }
