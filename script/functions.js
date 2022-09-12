@@ -20,11 +20,11 @@ function getTypeColor(type) {
 	return astronColors[astrons.indexOf(type)];
 }
 
-function getCursorPosition(canvas, e) {
-    const r = canvas.getBoundingClientRect();
+function getCursorPosition(e) {
+    const r = e.target.getBoundingClientRect();
     const x = e.clientX - r.left;
     const y = e.clientY - r.top;
-    return {x: x, y: y};
+    return point(x,y);
 }
 
 function ccw(a, b, c) {
@@ -242,12 +242,33 @@ function point(x, y) {
     return {x: x, y: y};
 }
 
+function eq(p, q, tol) {
+    if (!tol) tol = 1e-3; 
+    return len(sub(p,q))<Math.pow(tol,2);
+}
+
 function add(p, q) {
     return {x: p.x+q.x, y: p.y+q.y};
 }
 
 function sub(p, q) {
     return {x: p.x-q.x, y: p.y-q.y};
+}
+
+function mul(p, a) {
+    return point(p.x*a, p.y*a);
+}
+
+function dot(p, q) {
+    return p.x*q.x + p.y*q.y;
+}
+
+function len(p) {
+    return Math.sqrt(dot(p,p));
+}
+
+function proj(p, q) {
+    return mul(p, dot(p,q)/len(p)/len(q));
 }
 
 function rotate(p, theta) {

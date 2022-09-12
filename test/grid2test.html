@@ -3,7 +3,7 @@
 <head>
 <title>Grid 2 Test</title>
 <script src='/script/functions.js'></script>
-<script src='/script/test/newgrid.js'></script>
+<script src='/script/test/grid.js'></script>
 <script>
 var $ = e => document.querySelector(e);
 var grid;
@@ -11,10 +11,53 @@ var grid;
 window.addEventListener('load', e => {
     const canvas = $('canvas');
     const ctx = canvas.getContext('2d');
-    for (let i=Math.PI/10; i<Math.PI/8; i+=Math.PI/10) {
-        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'tri', size: 50, angle: i});
+    for (let i=0; i<Math.PI/8; i+=Math.PI/30) {
+        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'hex', size: 40, angle: i});
         grid.draw(ctx, 'red');
     }
+    function repaint() {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        grid.draw(ctx, 'red');
+    }
+    let dragging = false;
+    let prev = null;
+    canvas.addEventListener('mousedown', e => {
+        dragging = true;
+    });
+    canvas.addEventListener('mouseup', e => {
+        dragging = false;
+        prev = null;
+    });
+    canvas.addEventListener('mouseout', e => {
+        dragging = false;
+        prev = null;
+    });
+    // In screen coordinates
+    canvas.addEventListener('mousemove', e => {
+        if (dragging) {
+            const p = getCursorPosition(e);
+            if (prev && !eq(p,prev)) {
+                const c = point(canvas.width/2, canvas.height/2);
+                const d = sub(p, prev);
+                const m = sub(p, c);
+                const n = sub(prev, c);
+                const mm = len(m);
+                const nn = len(n);
+                const d2 = Math.pow(len(d),2);
+                const m2 = Math.pow(mm,2);
+                const n2 = Math.pow(nn,2);
+                const theta = Math.acos((m2+n2-d2)/2/mm/nn);
+                if (ccw(p,c,prev) < 0) {
+                    grid.rotate(theta);
+                } else {
+                    grid.rotate(-theta);
+                }
+                repaint();
+           }
+           prev = p;
+        }
+    });
 });
 </script>
 </head>
