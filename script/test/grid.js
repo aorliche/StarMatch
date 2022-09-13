@@ -5,6 +5,15 @@ class Poly {
         this.recalcBoundary();
     }
 
+    contains(p) {
+		for (let i=0; i<this.points.length; i++) {
+			if (ccw(this.points[i], this.points[(i+1)%this.points.length], p) < 0) {
+				return false;
+			}
+		}
+		return true;
+    }
+
     // xform is the screen transform (adjust center, flip y about center)
     draw(ctx, xform) {
         ctx.strokeStyle = '#775';
@@ -17,6 +26,10 @@ class Poly {
 		});
 		ctx.closePath();
         ctx.stroke();
+        if (this.selected) {
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+        }
     }
 }
 
@@ -90,6 +103,13 @@ class Grid {
             case 'hex': this.initHex(); kls = Hex; break;
         }
         this.makePolys(kls);
+        this.cacheNeighbors();
+    }
+
+    cacheNeighbors() {
+        this.centers.forEach(c => {
+            c.neighbors = this.findNeighbors(c);
+        });
     }
 
     // Each anchor contains either 1 (square, hex) or 2 (tri) centers
@@ -103,20 +123,62 @@ class Grid {
         return cs;
     }
 
+    click(p) {
+        p = this.xforminv(p);
+        this.centers.forEach(c => {
+            if (c.poly && c.poly.contains(p)) {
+                c.poly.selected = !c.poly.selected;
+            }
+        });
+    }
+
     draw(ctx, color) {
         this.centers.forEach(c => {
             fillCircle(ctx, this.xform(c), 2, color);
-            c.poly.draw(ctx, p => this.xform(p));
+            if (c.poly) 
+                c.poly.draw(ctx, p => this.xform(p));
         });
     }
 
     fall() {
         const cs = this.centers;
         cs.sort((a,b) => a.y - b.y);
-        // If empty, pull in neighbors above
+        // Empty locations pull in polys from above them
         cs.forEach(c => {
-
+            // Grid position already occupied
+            if (c.poly) return;
+            // Shuffle order
+            c.neighbors.sort(() => Math.random() - 0.5);
+            c.neighbors.forEach(n => {
+                // Check that we haven't already filled hole
+                if (!c.poly && n.poly && n.y > c.y) {
+                    c.poly = n.poly;
+                    n.poly = null;
+                    c.poly.params.center = {...c};
+                    if (c.up || n.up) c.poly.params.up = c.up; // Triangles
+                    c.poly.recalcBoundary();
+                }
+            });
         });
+    }
+
+    findNeighbors(c) {
+        const [i,j] = c.pairstr.split(',').map(p => parseInt(p));
+        const ns = [];
+        for (let ii=i-1; ii<=i+1; ii++) {
+            for (let jj=j-1; jj<=j+1; jj++) {
+                try { // Some indices are outside of grid
+                    this.map[pairstr([ii,jj])].forEach(cc => {
+                        const d = len(sub(c,cc));
+                        // Like this for triangles, which can be in the same map group
+                        if (d < this.neighborDistance && d > 1) {
+                            ns.push(cc);
+                        }
+                    });
+                } catch (e) {}
+            }
+        }
+        return ns;
     }
 
     initHex() {
@@ -162,7 +224,7 @@ class Grid {
                 c1.up = false;
                 c2.up = true;
                 c1.pairstr = str;
-                c1.pairstr = str;
+                c2.pairstr = str;
                 this.map[str] = [c1,c2];
             }
         }
@@ -175,19 +237,38 @@ class Grid {
         });
     }
 
-    neighbors(c) {
-        const [i,j] = c.pairstr.split(',').forEach(p => parseInt(p));
-        const ns = [];
-        for (let ii=i-1; ii<=i+1; ii++) {
-            for (let jj=j-1; jj<=j+1; jj++) {
-                this.map[pairstr([ii,jj])].forEach(cc => {
-                    if (len(sub(c,cc)) < this.neighborDistance) {
-                        neighbors.push(c)
-                    }
-                });
-            }
+    // Get each astron type individually
+    get matched() {
+        function growGroup(group, visited) {
+            group.at(-1).neighbors.forEach(n => {
+                if (n.poly && n.poly.selected && !visited.includes(n)) {
+                    group.push(n);
+                    visited.push(n);
+                    growGroup(group, visited);
+                }
+            });
         }
-        return ns;
+        // TODO Selected should be astrons types
+        const selected = this.centers.filter(c => c.poly && c.poly.selected);
+        const groups = [];
+        const visited = [];
+        selected.forEach(s => {
+            if (!visited.includes(s)) {
+                groups.push([s]);
+                visited.push(s);
+                growGroup(groups.at(-1), visited);
+            }
+        });
+        console.log(groups);
+    }
+
+    get neighborDistance() {
+        const tol = 1;
+        switch(this.params.type) {
+            case 'tri': return this.params.size/Math.sqrt(3)+tol;
+            case 'square': return this.params.size+tol;
+            case 'hex': return this.params.size*Math.sqrt(3)+tol;
+        }
     }
 
     rotate(theta) {
@@ -195,9 +276,11 @@ class Grid {
             const upd = rotate(c, theta);
             c.x = upd.x;
             c.y = upd.y;
-            c.poly.params.center = upd;
-            c.poly.params.angle += theta;
-            c.poly.recalcBoundary();
+            if (c.poly) {
+                c.poly.params.center = upd;
+                c.poly.params.angle += theta;
+                c.poly.recalcBoundary();
+            }
         });
     }
 
@@ -208,8 +291,10 @@ class Grid {
         return pp;
     }
 
-    ixform(p) {
+    // From screen coordinates to world coordinates
+    xforminv(p) {
         const pp = sub(p, this.center);
+        pp.y = -pp.y;
         return pp;
     }
 }

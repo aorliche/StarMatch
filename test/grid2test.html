@@ -12,7 +12,7 @@ window.addEventListener('load', e => {
     const canvas = $('canvas');
     const ctx = canvas.getContext('2d');
     for (let i=0; i<Math.PI/8; i+=Math.PI/30) {
-        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'hex', size: 40, angle: i});
+        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'tri', size: 40, angle: i});
         grid.draw(ctx, 'red');
     }
     function repaint() {
@@ -48,15 +48,22 @@ window.addEventListener('load', e => {
                 const m2 = Math.pow(mm,2);
                 const n2 = Math.pow(nn,2);
                 const theta = Math.acos((m2+n2-d2)/2/mm/nn);
-                if (ccw(p,c,prev) < 0) {
+                if (ccw(p,c,prev) < 0) { // ccw
                     grid.rotate(theta);
-                } else {
+                } else { // cw
                     grid.rotate(-theta);
                 }
+                grid.fall();
                 repaint();
            }
            prev = p;
         }
+    });
+    // Click, in screen coordinates
+    canvas.addEventListener('click', e => {
+        const p = getCursorPosition(e);
+        grid.click(p);
+        repaint();
     });
 });
 </script>
