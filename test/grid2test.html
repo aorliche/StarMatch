@@ -11,8 +11,9 @@ var grid;
 window.addEventListener('load', e => {
     const canvas = $('canvas');
     const ctx = canvas.getContext('2d');
-    for (let i=0; i<Math.PI/8; i+=Math.PI/30) {
-        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'tri', size: 40, angle: i});
+    for (let i=0; i<Math.PI/8; i+=Math.PI) {
+        grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'hex', 
+            irange: [-10,10], jrange: [-10,10] ,size: 30, angle: i});
         grid.draw(ctx, 'red');
     }
     function repaint() {
@@ -20,6 +21,8 @@ window.addEventListener('load', e => {
         ctx.fillRect(0,0,canvas.width,canvas.height);
         grid.draw(ctx, 'red');
     }
+    const anim = new Animator(grid, repaint);
+    anim.start();
     let dragging = false;
     let prev = null;
     canvas.addEventListener('mousedown', e => {
@@ -49,12 +52,10 @@ window.addEventListener('load', e => {
                 const n2 = Math.pow(nn,2);
                 const theta = Math.acos((m2+n2-d2)/2/mm/nn);
                 if (ccw(p,c,prev) < 0) { // ccw
-                    grid.rotate(theta);
+                    //grid.rotate(theta);
                 } else { // cw
-                    grid.rotate(-theta);
+                    //grid.rotate(-theta);
                 }
-                grid.fall();
-                repaint();
            }
            prev = p;
         }
@@ -63,7 +64,6 @@ window.addEventListener('load', e => {
     canvas.addEventListener('click', e => {
         const p = getCursorPosition(e);
         grid.click(p);
-        repaint();
     });
 });
 </script>

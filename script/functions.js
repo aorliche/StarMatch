@@ -280,3 +280,21 @@ function rotate(p, theta) {
 function pairstr(p) {
     return `${p[0]},${p[1]}`;
 }
+
+function strpair(s) {
+    return s.split(',').map(p => parseInt(p))
+}
+
+function range(start, end) {
+    const rng = [...Array(Math.abs(start-end)+1).keys()];
+    if (start > end) {
+        return rng.map(i => i+end).reverse();
+    } else {
+        return rng.map(i => i+start);
+    }
+}
+
+// exclusive of end
+function randint(start, end) {
+    return start+Math.floor(Math.random()*(end-start));
+}
