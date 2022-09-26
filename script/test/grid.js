@@ -22,6 +22,12 @@ class Poly {
         ctx.fillText(this.params.pairstr, center.x, center.y);
     }
 
+    drawHard(ctx, xform) {
+        const center = xform(this.params.center);
+        ctx.fillStyle = '#333';
+        ctx.fillText(this.hard, center.x, center.y);
+    }
+
     // xform is the screen transform (adjust center, flip y about center)
     draw(ctx, xform) {
         if (this.empty) {
@@ -36,17 +42,20 @@ class Poly {
 			ctx.lineTo(p.x, p.y);
 		});
 		ctx.closePath();
-        if (this.selected) {
+        /*if (this.hard) {
             ctx.strokeStyle = '#775';
             ctx.lineWidth = 4;
         } else {
             ctx.strokeStyle = '#775';
             ctx.lineWidth = 1;
-        }
+        }*/
         ctx.fillStyle = this.color;
         ctx.fill();
         ctx.stroke();
-        this.drawCoords(ctx, xform);
+        if (this.hard) {
+            this.drawHard(ctx, xform);
+        }
+        //this.drawCoords(ctx, xform);
     }
 }
 
@@ -109,13 +118,21 @@ class Square extends Poly {
 }
 
 class Animator {
-    constructor(grid, repaint) {
+    constructor(grid, ctx, dim) {
         this.grid = grid;
         this.grid.anim = this;
+        this.ctx = ctx;
+        this.ctx.font = '10px Sans-serif';
+        this.dim = {...dim};
         this.running = false;
         this.polys = [];
-        this.repaint = repaint;
+        this.clearing = [];
+        this.messages = [];
         this.FALLSPEED = 5;
+        this.CLEARSPEED = 8;
+        this.CLEARREMOVE = 200;
+        this.MSGSTART = dim.h/7;
+        this.MSGSPACE = 15;
     }
 
     animate() {
@@ -135,17 +152,52 @@ class Animator {
                 return true;
             }
         });
-        this.grid.shower();
-        this.grid.fall();
-        this.grid.clear();
+        this.clearing = this.clearing.filter(p => {
+            p.params.center.y -= this.CLEARSPEED;
+            if (p.params.center.y < -this.grid.params.dim.h/2-this.CLEARREMOVE)
+                return false;
+            else {
+                p.recalcBoundary();
+                return true;
+            }
+        });
+        this.messages = this.messages.filter(msg => {
+            msg.tick();
+            if (msg.time < 0) {
+                this.messages.forEach(m => m.pos.y -= msg.dim.h+this.MSGSPACE);
+                return false;
+            }
+            return true;
+        });
+        this.grid.tick();
         this.repaint();
         if (this.running) 
             requestAnimationFrame(e => this.animate());
     }
 
+    clear(poly) {
+        this.clearing.push(new this.grid.kls(poly.params));
+        this.clearing.at(-1).params.center = {...poly.params.center};
+        this.clearing.at(-1).color = poly.color;
+        this.clearing.at(-1).empty = false;
+    }
+
     fall(poly, to) {
         poly.to = {...to};
         this.polys.push(poly);
+    }
+
+    // Grid coordinates
+    message(text) {
+        const start = this.messages.reduce((prev, cur) => prev + cur.dim.h + this.MSGSPACE, this.MSGSTART);
+        const msg = new Message({
+            text: text, 
+            pos: {x: 0, y: start}, 
+            fontSize: '24',
+            fontWeight: 'Bold',
+            ctx: this.ctx, 
+            xform: p => this.grid.xform(p)});
+        this.messages.push(msg);
     }
 
     start() {
@@ -157,12 +209,147 @@ class Animator {
     stop() {
         this.running = false;
     }
+    
+    repaint() {
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillRect(0,0,this.dim.w,this.dim.h);
+        this.grid.draw(this.ctx, 'red');
+        this.messages.forEach(msg => msg.draw(this.ctx));
+    }
+}
+
+// Space Weather
+class Weather {
+    constructor(time, npoly, type) {
+        this.time = time;
+        this.npoly = npoly;
+        this.type = type;
+        this.systems = [this];
+        this.hardratio = 0.2;
+        this.hardlevel = 3;
+    }
+
+    add(time, npoly, type) {
+        this.systems.push(new Weather(time, npoly, type));
+        return this;
+    }
+}
+
+class Message {
+    constructor(params) {
+        console.assert(params.ctx);
+        console.assert(params.pos);
+        this.params = params;
+        this.pos = params.pos;
+        this.dim = null;
+        this.time = params.time ?? 120;
+        this.text = params.text ?? 'empty';
+		this.color = params.color ?? '#333';
+		this.fontFamily = params.fontFamily ?? 'Sans';
+		this.fontSize = params.fontSize ?? 16;
+		this.fontWeight = params.fontWeight ?? '';
+		this.ctx = params.ctx;
+        this.xform = params.xform ?? null;
+		this.pack();
+    }
+
+	draw(ctx) {
+        ctx.save();
+        if (this.alpha || this.alpha === 0) ctx.globalAlpha = this.alpha;
+		let p = {x: this.pos.x, y: this.pos.y-this.ascent};
+        if (this.xform) p = this.xform(p);
+		ctx.font = this.font;
+		ctx.fillStyle = this.color;
+		ctx.fillText(this.text, p.x, p.y);
+        ctx.restore();
+	}
+
+	get font() {
+		return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, sans-serif`;
+	}
+
+	pack() {
+        this.ctx.save();
+		this.ctx.font = this.font;
+		const tm = this.ctx.measureText(this.text);
+		this.ascent = tm.actualBoundingBoxAscent;
+		this.descent = tm.actualBoundingBoxDescent;
+        this.pos.x = this.pos.x-tm.width/2;
+        this.dim = {w: tm.width, h: this.ascent+this.descent};
+        this.ctx.restore();
+	}
+
+    tick() {
+        this.time--;
+    }
+}
+
+class Timer {
+    constructor(params) {
+        console.assert(params.cb);
+        this.end = params.end ?? null;
+        this.loop = params.loop ?? false;
+        this.paused = params.paused ?? false;
+    }
+
+    pause() {
+        this.paused = true;
+    }
+
+    reset() {
+        this.time = 0;
+    }
+
+    start() {
+        this.paused = false;
+    }
+
+    tick() {
+        if (this.paused)
+            return;
+        this.time++;
+        if (this.time == this.end) {
+            this.cb();
+            if (this.loop) 
+                this.reset();
+        }
+    }
+}
+
+class FadeInOut {
+    constructor(target, triplet) {
+        this.target = target;
+        this.triplet = triplet;
+        this.rate1 = triplet[0] > 0 ? 1/triplet[0] : 0;
+        this.rate2 = triplet[2] > 0 ? 1/triplet[2] : 0;
+        this.time = 0;
+        this.target.alpha = 0;
+    }
+
+    tick() {
+        this.time++;
+        if (this.time < this.triplet[0]) {
+            this.target.alpha = this.rate1*this.time;
+        } else if (this.time < this.triplet[0] + this.triplet[1]) {
+            this.target.alpha = 1;
+        } else if (this.time < this.triplet[0] + this.triplet[1] + this.triplet[2]) {
+            this.target.alpha = this.rate2*(this.triplet[0]+this.triplet[1]+this.triplet[2]-this.time);
+        } else {
+            this.target.alpha = 0;
+            return false;
+        }
+        return true;
+    }
 }
 
 class Grid {
     constructor(params) {
         this.center = point(params.dim.w/2, params.dim.h/2);
         this.params = {...params};
+        this.EMPTYTOP = -300;
+        this.TOPPADDING = 200;
+        this.time = -200;
+        this.weather = new Weather(120, 1).add(600, 5, 'point').add(1500, 25);
         switch (params.type) {
             case 'tri': this.initTri(); this.kls = Tri; break;
             case 'square': this.initSquare(); this.kls = Square; break;
@@ -171,6 +358,16 @@ class Grid {
         this.makePolys();
         this.cacheNeighbors();
         this.assignColors();
+        this.messages = {levelIntro: new Message({
+                text: 'Welcome to Level 1',
+                pos: point(0, this.params.dim.h/2-50),
+                fontSize: '32',
+                fontWeight: 'Bold',
+                ctx: this.params.ctx, 
+                xform: p => this.xform(p)
+            }
+        )};
+        this.effects = [new FadeInOut(this.messages.levelIntro, [180,240,180])];
     }
 
     assignColors() {
@@ -218,14 +415,24 @@ class Grid {
     clear() {
         this.matched.forEach(grp => {
             grp.forEach(c => {
-                c.poly.empty = true;
-                if (c.poly.to) {
-                    c.poly.params.center = c.poly.to;
-                    c.poly.to = null;
-                }
-                if (c.poly == this.selected) this.selected = null;
+                this.clearCenter(c);
             });
         });
+    }
+
+    clearCenter(c, blast) {
+        if (!blast && c.poly.hard) {
+            c.poly.hard--;
+            return;
+        }
+        c.poly.empty = true;
+        // This avoids major problems with grid getting confused
+        if (c.poly.to) {
+            c.poly.params.center = c.poly.to;
+            c.poly.to = null;
+        }
+        if (c.poly == this.selected) this.selected = null;
+        this.anim.clear(c.poly);
     }
 
     // TODO no select falling?
@@ -249,6 +456,18 @@ class Grid {
         });
     }
 
+    rightClick(p) {
+        p = this.xforminv(p);
+        let found = false;
+        this.centers.forEach(c => {
+            if (!found && c.poly && c.poly.contains(p)) {
+                c.neighbors.forEach(n => this.clearCenter(n));
+                this.clearCenter(c, true);
+                found = true;
+            }
+        });
+    }
+
     // Game coordinates
     contains(p) {
         if (p.x > -this.params.dim.w/2 
@@ -261,10 +480,12 @@ class Grid {
     }
 
     // Game coordinates
-    containsBucket(p) {
+    containsBucket(p, dy) {
+        if (!dy) dy = 0;
         if (p.x > -this.params.dim.w/2 
             && p.x < this.params.dim.w/2 
-            && p.y > -this.params.dim.h/2)
+            && p.y > -this.params.dim.h/2
+            && p.y < this.params.dim.h/2+dy)
             return true;
         else
             return false;
@@ -276,6 +497,12 @@ class Grid {
             if (c.poly) 
                 c.poly.draw(ctx, p => this.xform(p));
         });
+        this.anim.clearing.forEach(p => {
+            p.draw(ctx, p => this.xform(p));
+        });
+        for (let msgname in this.messages) {
+            this.messages[msgname].draw(ctx);
+        };
     }
 
     fall() {
@@ -288,7 +515,7 @@ class Grid {
         });
         cs.forEach(c => {
             if (!c.poly.empty) return;
-            if (!this.containsBucket(c)) return;
+            if (!this.containsBucket(c, this.TOPPADDING)) return;
             // Clear takes care of setting .to to null, and anim removes null .tos
             // Only true for empty polys!
             console.assert(!c.poly.to);
@@ -380,7 +607,7 @@ class Grid {
             const p = new this.kls({center: {...c}, size: this.params.size, angle: this.params.angle, 
                 up: c.up, pairstr: c.pairstr});
             c.poly = p;
-            if (!this.contains(c)) c.poly.empty = true;
+            if (!this.containsBucket(c, this.EMPTYTOP)) c.poly.empty = true;
         });
     }
 
@@ -440,16 +667,16 @@ class Grid {
         // Find only matches of 3 or greater and remove duplicates
         groups.forEach(g => g.sort((a,b) => a.y-b.y));
         return groups
-        .filter(g => g.length > 2)
-        .filter((g, idx, grps) => {
-            for (let i=0; i<grps.length; i++) {
-                // This is why we need the sort above
-                // Shortcut just match first and last
-                if (g[0] == grps[i][0] && g.at(-1) == grps[i].at(-1)) {
-                    return i == idx;
+            .filter(g => g.length > 2)
+            .filter((g, idx, grps) => {
+                for (let i=0; i<grps.length; i++) {
+                    // This is why we need the sort above
+                    // Shortcut just match first and last
+                    if (g[0] == grps[i][0] && g.at(-1) == grps[i].at(-1)) {
+                        return i == idx;
+                    }
                 }
-            }
-        });
+            });
     }
 
     get neighborDistance() {
@@ -480,19 +707,31 @@ class Grid {
     }
 
     shower() {
-        if (!this.showerTick && this.showerTick !== 0) 
-            this.showerTick = -200;
-        if (this.showerTick >= 0 && this.showerTick % 120 == 0) {
-            const above = this.centers
-            .filter(c => this.containsBucket(c))
+        this.time++;
+        if (this.time <= 0) 
+            return;
+        const above = this.centers
+            .filter(c => this.containsBucket(c, this.TOPPADDING))
             .filter(c => !this.contains(c));
-            const maxy = above.reduce((prev, c) => (c.y > prev) ? c.y : prev, 0);
-            const c = randomChoice(above.filter(c => maxy-c.y > 50));
-            c.poly.empty = false;
-            c.poly.color = randomChoice(colors);
-        }
-        this.showerTick++;
-        console.log(this.showerTick);
+        this.weather.systems
+            .filter(w => this.time % w.time == 0).forEach(w => {
+                let aboveCopy = [...above];
+                if (w.type == 'point') {
+                    const pc = aboveCopy[Math.floor(Math.random()*aboveCopy.length)];
+                    aboveCopy = aboveCopy.filter(c => len(sub(c,pc)) < 100);
+                } else {
+                    const maxy = aboveCopy.reduce((prev, c) => (c.y > prev) ? c.y : prev, 0);
+                    aboveCopy = aboveCopy.filter(c => maxy-c.y > 50);
+                }
+                let idcs = [...Array(aboveCopy.length).keys()];
+                idcs.sort((a,b) => Math.random()-0.5);
+                idcs.slice(0,w.npoly).forEach(i => {
+                    const c = aboveCopy[i];
+                    c.poly.empty = false;
+                    c.poly.hard = Math.random() > (1-w.hardratio) ? w.hardlevel : 0;
+                    c.poly.color = randomChoice(colors);
+                });
+            });
     }
 
     swapPolys(c1, c2, fall) {
@@ -509,6 +748,15 @@ class Grid {
         c1.poly.recalcBoundary();
         c2.poly.recalcBoundary();
         [c1.poly, c2.poly] = [c2.poly, c1.poly];
+    }
+
+    tick() {
+        this.shower();
+        this.fall();
+        this.clear();
+        this.effects = this.effects.filter(e => {
+            return e.tick();
+        });
     }
 
     // Add center and flip y about center y

@@ -13,16 +13,13 @@ window.addEventListener('load', e => {
     const ctx = canvas.getContext('2d');
     for (let i=0; i<Math.PI/8; i+=Math.PI) {
         grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'hex', 
-            irange: [-10,10], jrange: [-10,10] ,size: 30, angle: i});
-        grid.draw(ctx, 'red');
+            irange: [-9,9], jrange: [-9,9] ,size: 30, angle: i, ctx: ctx});
+        //grid.draw(ctx, 'red');
     }
-    function repaint() {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        grid.draw(ctx, 'red');
-    }
-    const anim = new Animator(grid, repaint);
+    const anim = new Animator(grid, ctx, {w: canvas.width, h: canvas.height});
     anim.start();
+    anim.message('hello');
+    anim.message('hi');
     let dragging = false;
     let prev = null;
     canvas.addEventListener('mousedown', e => {
@@ -62,8 +59,14 @@ window.addEventListener('load', e => {
     });
     // Click, in screen coordinates
     canvas.addEventListener('click', e => {
+        e.preventDefault();
         const p = getCursorPosition(e);
         grid.click(p);
+    });
+    canvas.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const p = getCursorPosition(e);
+        grid.rightClick(p);
     });
 });
 </script>
