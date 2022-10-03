@@ -30,7 +30,7 @@ class Poly {
 
     drawSelected(ctx, xform) {
         this.makePath(ctx, xform);
-        ctx.strokeStyle = '#333';
+        ctx.strokeStyle = '#000';
         ctx.lineWidth = 3;
         ctx.stroke();
     }
@@ -42,13 +42,6 @@ class Poly {
             return;
         }
         this.makePath(ctx, xform);
-        /*if (this.hard) {
-            ctx.strokeStyle = '#775';
-            ctx.lineWidth = 4;
-        } else {
-            ctx.strokeStyle = '#775';
-            ctx.lineWidth = 1;
-        }*/
         ctx.fillStyle = this.color;
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
@@ -394,6 +387,25 @@ class TextControl extends Control {
 	}
 }
 
+class TextCounterControl extends TextControl {
+    constructor(params) {
+        super(params);
+        this.countPriv = params.count;
+        this.textSav = this.text;
+        this.count = this.countPriv;
+    }
+
+    get count() {
+        return this.countPriv;
+    }
+
+    set count(count) {
+        this.countPriv = count;
+        this.text = this.textSav + ' ' + this.countPriv;
+        this.pack();
+    }
+}
+
 // Passed dim is for image, pos is for text, text calculates own dim
 class ImageCounterControl extends Control {
     constructor(params) {
@@ -469,6 +481,26 @@ class ButtonControl extends Control {
     }
 }
 
+class BoxControl extends Control {
+    constructor(params) {
+        super(params);
+    }
+
+    draw(ctx) {
+        /*console.log(this);
+        throw 'bad';*/
+        if (this.bgColor) {
+            ctx.save();
+            if (this.bgAlpha) {
+                ctx.globalAlpha = this.bgAlpha;
+            }
+            ctx.fillStyle = this.bgColor;
+            ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+            ctx.restore();
+        }
+    }
+}
+
 class Timer {
     constructor(params) {
         this.t = params.t0;
@@ -520,9 +552,9 @@ class Grid {
             }
         )};
         this.effects = [new FadeInOut(this.messages.levelIntro, [0,100,0])];*/
-        this.tutorial = new TextControl({
+        /*this.tutorial = new TextControl({
 
-        });
+        });*/
         this.blasts = new ImageCounterControl({
             pos: {x: 20, y: 30},
             dim: {w: 30, h: 30},
@@ -540,7 +572,7 @@ class Grid {
             ctx: this.params.ctx
         });
         this.pause = new ButtonControl({
-            pos: {x: this.params.dim.w-115, y: 60},
+            pos: {x: this.params.dim.w-115, y: 85},
             dim: {w: 100, h: 30},
             fontSize: 16,
             text: 'Pause',
@@ -560,16 +592,31 @@ class Grid {
                 tf: 0,
                 tickcb: t => {
                     const ttxt = new Date(t/60*1000).toISOString().substr(14,5);
-                    //console.log(ttxt);
                     this.survive.text = 'Time: ' + ttxt;
                     this.survive.pack();
                 },
                 endcb: t => {
                     this.anim.message('You did it!');
+                    this.iterations.count++;
                     this.timers.survive.reset();
                 }
             })
         };
+        this.boxes = [
+            new BoxControl({
+                pos: point(0,15), 
+                dim: dimension(this.params.dim.w, 40), 
+                bgColor: '#333', 
+                bgAlpha: 0.3
+            })
+        ];
+        this.iterations = new TextCounterControl({
+            pos: point(this.params.dim.w-105, 63),
+            text: 'Iteration',
+            fontSize: 16,
+            count: 1,
+            ctx: this.params.ctx
+        });
     }
 
     assignColors() {
@@ -730,10 +777,11 @@ class Grid {
         this.anim.clearing.forEach(p => {
             p.draw(ctx, p => this.xform(p));
         });
+        this.boxes.forEach(b => b.draw(ctx));
         this.blasts.draw(ctx);
         this.survive.draw(ctx);
         this.pause.draw(ctx);
-        //this.rbutton.draw(ctx);
+        this.iterations.draw(ctx);
         for (let msgname in this.messages) {
             this.messages[msgname].draw(ctx);
         };

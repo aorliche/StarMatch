@@ -242,6 +242,10 @@ function point(x, y) {
     return {x: x, y: y};
 }
 
+function dimension(w, h) {
+    return {w: w, h: h};
+}
+
 function eq(p, q, tol) {
     if (!tol) tol = 1e-3; 
     return len(sub(p,q))<Math.pow(tol,2);
