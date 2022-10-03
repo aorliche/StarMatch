@@ -86,7 +86,7 @@ function indexOfArrayElts(arr, item) {
 	return -1;
 }
 
-function shuffleArray(arr) {
+function shuffle(arr) {
 	for (let i=0; i<arr.length; i++) {
 		const j = Math.floor(Math.random()*arr.length);
 		const k = Math.floor(Math.random()*arr.length);
@@ -297,4 +297,9 @@ function range(start, end) {
 // exclusive of end
 function randint(start, end) {
     return start+Math.floor(Math.random()*(end-start));
+}
+
+function zip(a,b) {
+    console.assert(a.length == b.length);
+    return a.map((aelt, aidx) => [aelt, b[aidx]]);
 }

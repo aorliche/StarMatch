@@ -8,12 +8,12 @@ class Poly {
     }
 
     contains(p) {
-		for (let i=0; i<this.points.length; i++) {
-			if (ccw(this.points[i], this.points[(i+1)%this.points.length], p) < 0) {
-				return false;
-			}
-		}
-		return true;
+        for (let i=0; i<this.points.length; i++) {
+            if (ccw(this.points[i], this.points[(i+1)%this.points.length], p) < 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     drawCoords(ctx, xform) {
@@ -28,20 +28,20 @@ class Poly {
         ctx.fillText(this.hard, center.x, center.y);
     }
 
+    drawSelected(ctx, xform) {
+        this.makePath(ctx, xform);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
     // xform is the screen transform (adjust center, flip y about center)
     draw(ctx, xform) {
         if (this.empty) {
             this.drawCoords(ctx, xform);
             return;
         }
-		ctx.beginPath();
-		const start = xform(this.points[0]);
-		ctx.moveTo(start.x, start.y);
-		this.points.map(p => {
-            p = xform(p);
-			ctx.lineTo(p.x, p.y);
-		});
-		ctx.closePath();
+        this.makePath(ctx, xform);
         /*if (this.hard) {
             ctx.strokeStyle = '#775';
             ctx.lineWidth = 4;
@@ -50,12 +50,25 @@ class Poly {
             ctx.lineWidth = 1;
         }*/
         ctx.fillStyle = this.color;
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
         if (this.hard) {
             this.drawHard(ctx, xform);
         }
         //this.drawCoords(ctx, xform);
+    }
+
+    makePath(ctx, xform) {
+        ctx.beginPath();
+        const start = xform(this.points[0]);
+        ctx.moveTo(start.x, start.y);
+        this.points.map(p => {
+            p = xform(p);
+            ctx.lineTo(p.x, p.y);
+        });
+        ctx.closePath();
     }
 }
 
@@ -64,57 +77,57 @@ class Tri extends Poly {
         super(params);
     }
 
-	recalcBoundary() {
-		this.points = [];
+    recalcBoundary() {
+        this.points = [];
         const c = this.params.center;
         const size = this.params.size/Math.sqrt(3);
         const angle = this.params.angle;
-		const invert = this.params.up ? 0 : Math.PI;
-		for (let i=0; i<3; i++) {
-			this.points.push({
-				x: c.x + size*Math.cos(i*2*Math.PI/3+angle+invert+Math.PI/6), 
-				y: c.y + size*Math.sin(i*2*Math.PI/3+angle+invert+Math.PI/6)
-			});
-		}
-	}
+        const invert = this.params.up ? 0 : Math.PI;
+        for (let i=0; i<3; i++) {
+            this.points.push({
+                x: c.x + size*Math.cos(i*2*Math.PI/3+angle+invert+Math.PI/6), 
+                y: c.y + size*Math.sin(i*2*Math.PI/3+angle+invert+Math.PI/6)
+            });
+        }
+    }
 }
 
 class Hex extends Poly {
     constructor(params) {
         super(params);
     }
-	
+    
     recalcBoundary() {
-		this.points = [];
+        this.points = [];
         const c = this.params.center;
         const size = this.params.size;
         const angle = this.params.angle;
-		for (let i=0; i<6; i++) {
-			this.points.push({
-				x: c.x + size*Math.cos(i*Math.PI/3+angle+Math.PI/6), 
-				y: c.y + size*Math.sin(i*Math.PI/3+angle+Math.PI/6)
-			});
-		}
-	}
+        for (let i=0; i<6; i++) {
+            this.points.push({
+                x: c.x + size*Math.cos(i*Math.PI/3+angle+Math.PI/6), 
+                y: c.y + size*Math.sin(i*Math.PI/3+angle+Math.PI/6)
+            });
+        }
+    }
 }
 
 class Square extends Poly {
     constructor(params) {
         super(params);
     }
-	
+    
     recalcBoundary() {
-		this.points = [];
+        this.points = [];
         const c = this.params.center;
         const size = this.params.size/Math.sqrt(2);
         const angle = this.params.angle;
-		for (let i=0; i<4; i++) {
-			this.points.push({
-				x: c.x + size*Math.cos(i*Math.PI/2+angle+Math.PI/4), 
-				y: c.y + size*Math.sin(i*Math.PI/2+angle+Math.PI/4)
-			});
-		}
-	}
+        for (let i=0; i<4; i++) {
+            this.points.push({
+                x: c.x + size*Math.cos(i*Math.PI/2+angle+Math.PI/4), 
+                y: c.y + size*Math.sin(i*Math.PI/2+angle+Math.PI/4)
+            });
+        }
+    }
 }
 
 class Animator {
@@ -244,75 +257,43 @@ class Message {
         this.dim = null;
         this.time = params.time ?? 120;
         this.text = params.text ?? 'empty';
-		this.color = params.color ?? '#333';
-		this.fontFamily = params.fontFamily ?? 'Sans';
-		this.fontSize = params.fontSize ?? 16;
-		this.fontWeight = params.fontWeight ?? '';
-		this.ctx = params.ctx;
+        this.color = params.color ?? '#333';
+        this.fontFamily = params.fontFamily ?? 'Sans';
+        this.fontSize = params.fontSize ?? 16;
+        this.fontWeight = params.fontWeight ?? '';
+        this.ctx = params.ctx;
         this.xform = params.xform ?? null;
-		this.pack();
+        this.pack();
     }
 
-	draw(ctx) {
+    draw(ctx) {
         ctx.save();
         if (this.alpha || this.alpha === 0) ctx.globalAlpha = this.alpha;
-		let p = {x: this.pos.x, y: this.pos.y-this.ascent};
+        let p = {x: this.pos.x, y: this.pos.y-this.ascent};
         if (this.xform) p = this.xform(p);
-		ctx.font = this.font;
-		ctx.fillStyle = this.color;
-		ctx.fillText(this.text, p.x, p.y);
+        ctx.font = this.font;
+        ctx.fillStyle = this.color;
+        ctx.fillText(this.text, p.x, p.y);
         ctx.restore();
-	}
+    }
 
-	get font() {
-		return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, sans-serif`;
-	}
+    get font() {
+        return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, sans-serif`;
+    }
 
-	pack() {
+    pack() {
         this.ctx.save();
-		this.ctx.font = this.font;
-		const tm = this.ctx.measureText(this.text);
-		this.ascent = tm.actualBoundingBoxAscent;
-		this.descent = tm.actualBoundingBoxDescent;
+        this.ctx.font = this.font;
+        const tm = this.ctx.measureText(this.text);
+        this.ascent = tm.actualBoundingBoxAscent;
+        this.descent = tm.actualBoundingBoxDescent;
         this.pos.x = this.pos.x-tm.width/2;
         this.dim = {w: tm.width, h: this.ascent+this.descent};
         this.ctx.restore();
-	}
+    }
 
     tick() {
         this.time--;
-    }
-}
-
-class Timer {
-    constructor(params) {
-        console.assert(params.cb);
-        this.end = params.end ?? null;
-        this.loop = params.loop ?? false;
-        this.paused = params.paused ?? false;
-    }
-
-    pause() {
-        this.paused = true;
-    }
-
-    reset() {
-        this.time = 0;
-    }
-
-    start() {
-        this.paused = false;
-    }
-
-    tick() {
-        if (this.paused)
-            return;
-        this.time++;
-        if (this.time == this.end) {
-            this.cb();
-            if (this.loop) 
-                this.reset();
-        }
     }
 }
 
@@ -342,13 +323,184 @@ class FadeInOut {
     }
 }
 
+class Control {
+    constructor(params) {
+        this.pos = params.pos ? {...params.pos} : null;
+        this.dim = params.dim ? {...params.dim} : {w: 0, h: 0};
+		this.color = params.color ?? '#000';
+        this.bgColor = params.bgColor ?? null;
+        this.bgAlpha = params.bgAlpha ?? null;
+        this.strokeStyle = params.strokeStyle ?? null;
+        this.lineWidth = params.lineWidth ?? null;
+    }
+}
+
+class ImageControl extends Control {
+    constructor(params) {
+        super(params);
+        this.img = params.img;
+        this.dim = params.dim ?? null;
+    }
+    
+    draw(ctx) {
+        if (this.bgColor) {
+            ctx.fillStyle = this.bgColor;
+            ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+        }
+        const dim = this.calcDim();
+        ctx.drawImage(this.img, this.pos.x, this.pos.y, dim.w, dim.h);
+    }
+
+    calcDim() {
+        let [w,h] = this.dim 
+            ? scaleImage(this.img.width, this.img.height, this.dim.w, this.dim.h) 
+            : [this.img.width, this.img.height];
+        return {w: w, h: h};
+    }
+}
+
+class TextControl extends Control {
+	// ctx required for measuring text
+	constructor(params) {
+		super(params);
+		this.text = params.text;
+		this.fontFamily = params.fontFamily ?? 'sans-serif';
+		this.fontSize = params.fontSize ?? 16;
+		this.fontWeight = params.fontWeight ?? '';
+		this.ctx = params.ctx;
+		this.pack();
+	}
+
+	draw(ctx) {
+		const p = {x: this.pos.x, y: this.pos.y+this.ascent};
+        ctx.save();
+		ctx.font = this.font;
+		ctx.fillStyle = this.color;
+		ctx.fillText(this.text, p.x, p.y);
+        ctx.restore();
+	}
+
+	get font() {
+		return `${this.fontWeight} ${this.fontSize}px ${this.fontFamily}, sans-serif`;
+	}
+
+	pack(pass) {
+		this.ctx.font = this.font;
+		const tm = this.ctx.measureText(this.text);
+		this.ascent = tm.actualBoundingBoxAscent;
+		this.descent = tm.actualBoundingBoxDescent;
+		this.dim.w = tm.width;
+		this.dim.h = this.ascent + this.descent;
+	}
+}
+
+// Passed dim is for image, pos is for text, text calculates own dim
+class ImageCounterControl extends Control {
+    constructor(params) {
+        super(params);
+        this.text = new TextControl({...params});
+        this.img = new ImageControl({...params});
+        this.padding = params.padding ?? 2;
+        this.count = params.count ?? 0;
+    }
+
+    draw(ctx) {
+        this.text.draw(ctx);
+        let pos = {...this.text.pos};
+        const imgdim = this.img.calcDim();
+        pos.y += (this.text.dim.h-imgdim.h)/2;
+        pos.x += this.text.dim.w+this.padding;
+        for (let i=0; i<this.count; i++) {
+            this.img.pos = pos;
+            this.img.draw(ctx);
+            pos.x += imgdim.w+this.padding;
+        }
+    }
+}
+
+class ButtonControl extends Control {
+    constructor(params) {
+        super(params);
+        this.text = new TextControl({...params});
+        this.pos = params.pos;
+        this.dim = params.dim;
+        this.cb = params.cb;
+        this.pack();
+    }
+
+    click() {
+        this.cb();
+    }
+
+    // Screen coords
+    contains(p) {
+        if (p.x > this.pos.x
+            && p.x < this.pos.x+this.dim.w
+            && p.y > this.pos.y
+            && p.y < this.pos.y+this.dim.h) 
+            return true;
+        else
+            return false;
+    }
+
+    draw(ctx) {
+        if (this.bgColor) {
+            if (this.hover) {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+                ctx.strokeStyle = this.bgColor;
+                ctx.strokeRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+                this.text.color = this.bgColor;
+            } else {
+                ctx.fillStyle = this.bgColor;
+                ctx.fillRect(this.pos.x, this.pos.y, this.dim.w, this.dim.h);
+                this.text.color = this.color;
+            }
+        } 
+        this.text.draw(ctx);
+    }
+
+    pack() {
+        this.text.pack();
+        const dw = this.dim.w - this.text.dim.w;
+        const dh = this.dim.h - this.text.dim.h;
+        this.text.pos.x = this.pos.x+dw/2;
+        this.text.pos.y = this.pos.y+dh/2+this.text.descent/2;
+    }
+}
+
+class Timer {
+    constructor(params) {
+        this.t = params.t0;
+        this.paused = params.paused ?? false;
+        this.params = {...params};
+    }
+
+    reset() {
+        this.t = this.params.t0;
+    }
+
+    tick() {
+        if (this.paused) 
+            return;
+        this.t += this.params.dt;
+        if (this.params.tickcb) {
+            this.params.tickcb(this.t);
+        }
+        if (this.t === this.params.tf)  {
+            this.params.endcb(this.t);
+        }
+    }
+}
+
 class Grid {
     constructor(params) {
         this.center = point(params.dim.w/2, params.dim.h/2);
         this.params = {...params};
         this.EMPTYTOP = -300;
         this.TOPPADDING = 200;
-        this.time = -200;
+        this.MAXBLASTS = 8;
+        this.time = -10;
         this.weather = new Weather(120, 1).add(600, 5, 'point').add(1500, 25);
         switch (params.type) {
             case 'tri': this.initTri(); this.kls = Tri; break;
@@ -358,16 +510,66 @@ class Grid {
         this.makePolys();
         this.cacheNeighbors();
         this.assignColors();
-        this.messages = {levelIntro: new Message({
-                text: 'Welcome to Level 1',
-                pos: point(0, this.params.dim.h/2-50),
+        /*this.messages = {levelIntro: new Message({
+                text: 'Welcome to Poly Match',
+                pos: point(0, 150),
                 fontSize: '32',
                 fontWeight: 'Bold',
                 ctx: this.params.ctx, 
                 xform: p => this.xform(p)
             }
         )};
-        this.effects = [new FadeInOut(this.messages.levelIntro, [180,240,180])];
+        this.effects = [new FadeInOut(this.messages.levelIntro, [0,100,0])];*/
+        this.tutorial = new TextControl({
+
+        });
+        this.blasts = new ImageCounterControl({
+            pos: {x: 20, y: 30},
+            dim: {w: 30, h: 30},
+            fontSize: 20,
+            text: 'Blasts:',
+            count: 1,
+            padding: 2,
+            ctx: this.params.ctx,
+            img: this.params.assets['blast']
+        });
+        this.survive = new TextControl({
+            pos: {x: this.params.dim.w-120, y: 30},
+            fontSize: 20,
+            text: 'Time:',
+            ctx: this.params.ctx
+        });
+        this.pause = new ButtonControl({
+            pos: {x: this.params.dim.w-115, y: 60},
+            dim: {w: 100, h: 30},
+            fontSize: 16,
+            text: 'Pause',
+            bgColor: '#77f',
+            color: '#fff',
+            ctx: this.params.ctx,
+            cb: () => {
+                this.paused = !this.paused;
+                this.pause.text.text = (this.paused) ? 'Unpause': 'Pause';
+                this.pause.pack();
+            }
+        });
+        this.timers = {
+            survive: new Timer({
+                t0: 1000,
+                dt: -1,
+                tf: 0,
+                tickcb: t => {
+                    const ttxt = new Date(t/60*1000).toISOString().substr(14,5);
+                    //console.log(ttxt);
+                    this.survive.text = 'Time: ' + ttxt;
+                    this.survive.pack();
+                },
+                endcb: t => {
+                    this.anim.message('You did it!');
+                    this.timers.survive.reset();
+                }
+            })
+        };
     }
 
     assignColors() {
@@ -414,6 +616,12 @@ class Grid {
 
     clear() {
         this.matched.forEach(grp => {
+            let bonus = grp.length-3;
+            if (this.blasts.count+bonus > this.MAXBLASTS) 
+                bonus = this.MAXBLASTS-this.blasts.count;
+            if (bonus) 
+                this.anim.message(`+${bonus} Blasts!`);
+            this.blasts.count += bonus;
             grp.forEach(c => {
                 this.clearCenter(c);
             });
@@ -435,35 +643,32 @@ class Grid {
         this.anim.clear(c.poly);
     }
 
-    // TODO no select falling?
     click(p) {
+        // Buttons in screen coords
+        if (this.pause.contains(p)) {
+            this.pause.click();
+            return;
+        }
+        if (this.paused)
+            return;
+        // Game in game coords
         p = this.xforminv(p);
         let found = false;
         this.centers.forEach(c => {
-            if (!found && c.poly && c.poly.contains(p)) {
-                c.neighbors.forEach(n => {
-                    if (!found && n.poly == this.selected) {
-                        this.swapPolys(c, n);
-                        this.selected = c.poly;
-                        found = true;
-                    }
-                });
+            if (!found && c.poly && c.poly.contains(p) && !c.poly.to) {
+                if (this.selected) {
+                    c.neighbors.forEach(n => {
+                        if (!found && n.poly == this.selected) {
+                            this.swapPolys(c, n);
+                            this.selected = c.poly;
+                            found = true;
+                        }
+                    });
+                }
                 if (!found) {
                     this.selected = (!c.poly.empty) ? c.poly : null;
                     found = true;
                 }
-            }
-        });
-    }
-
-    rightClick(p) {
-        p = this.xforminv(p);
-        let found = false;
-        this.centers.forEach(c => {
-            if (!found && c.poly && c.poly.contains(p)) {
-                c.neighbors.forEach(n => this.clearCenter(n));
-                this.clearCenter(c, true);
-                found = true;
             }
         });
     }
@@ -491,15 +696,44 @@ class Grid {
             return false;
     }
 
+    // Right click
+    contextmenu(p) {
+        if (this.paused) 
+            return;
+        if (this.blasts.count < 1) 
+            return;
+        p = this.xforminv(p);
+        let found = false;
+        this.centers.forEach(c => {
+            if (!found && c.poly && !c.poly.empty && c.poly.contains(p)) {
+                c.neighbors.forEach(n => this.clearCenter(n));
+                this.clearCenter(c, true);
+                this.blasts.count--;
+                found = true;
+            }
+        });
+    }
+
     draw(ctx, color) {
         this.centers.forEach(c => {
-            fillCircle(ctx, this.xform(c), 2, color);
-            if (c.poly) 
+            //fillCircle(ctx, this.xform(c), 2, color);
+            if (c.poly && !c.poly.empty) 
                 c.poly.draw(ctx, p => this.xform(p));
         });
+        if (this.selected) 
+            this.selected.drawSelected(ctx, p => this.xform(p));
+        if (this.hover) {
+            if (this.hover.poly && !this.hover.poly.empty && !this.hover.poly.to) {
+                this.hover.poly.drawSelected(ctx, p => this.xform(p));
+            }
+        }
         this.anim.clearing.forEach(p => {
             p.draw(ctx, p => this.xform(p));
         });
+        this.blasts.draw(ctx);
+        this.survive.draw(ctx);
+        this.pause.draw(ctx);
+        //this.rbutton.draw(ctx);
         for (let msgname in this.messages) {
             this.messages[msgname].draw(ctx);
         };
@@ -520,7 +754,7 @@ class Grid {
             // Only true for empty polys!
             console.assert(!c.poly.to);
             // Shuffle order
-            c.neighbors.sort(() => Math.random() - 0.5);
+            shuffle(c.neighbors);
             // No double filling for a single hole
             let filled = false;
             c.neighbors.forEach(n => {
@@ -665,18 +899,42 @@ class Grid {
             }
         });
         // Find only matches of 3 or greater and remove duplicates
-        groups.forEach(g => g.sort((a,b) => a.y-b.y));
         return groups
             .filter(g => g.length > 2)
+            .map(g => new Set(g))
             .filter((g, idx, grps) => {
                 for (let i=0; i<grps.length; i++) {
-                    // This is why we need the sort above
-                    // Shortcut just match first and last
-                    if (g[0] == grps[i][0] && g.at(-1) == grps[i].at(-1)) {
+                    let equal = true;
+                    g.forEach(c => {
+                        if (!grps[i].has(c)) equal = false;
+                    });
+                    if (equal) {
                         return i == idx;
-                    }
+                    } 
                 }
-            });
+            })
+            .map(g => [...g]);
+    }
+
+    mousemove(p) {
+        // Buttons in screen coords
+        this.pause.hover = this.pause.contains(p);
+        if (this.paused) {
+            this.hover = null;
+            return;
+        }
+        // Assets in game coords
+        p = this.xforminv(p);
+        this.hover = null;
+        this.centers.forEach(c => {
+            if (c.poly && c.poly.contains(p)) {
+                this.hover = c;
+            }
+        });
+    }
+
+    mouseout() {
+        this.hover = null;
     }
 
     get neighborDistance() {
@@ -716,15 +974,17 @@ class Grid {
         this.weather.systems
             .filter(w => this.time % w.time == 0).forEach(w => {
                 let aboveCopy = [...above];
+                let idcs;
                 if (w.type == 'point') {
                     const pc = aboveCopy[Math.floor(Math.random()*aboveCopy.length)];
-                    aboveCopy = aboveCopy.filter(c => len(sub(c,pc)) < 100);
+                    aboveCopy.sort((a,b) => len(sub(a,pc)) < len(sub(b,pc)));
+                    idcs = [...Array(w.npoly).keys()];
                 } else {
                     const maxy = aboveCopy.reduce((prev, c) => (c.y > prev) ? c.y : prev, 0);
                     aboveCopy = aboveCopy.filter(c => maxy-c.y > 50);
+                    idcs = [...Array(aboveCopy.length).keys()];
+                    shuffle(idcs);
                 }
-                let idcs = [...Array(aboveCopy.length).keys()];
-                idcs.sort((a,b) => Math.random()-0.5);
                 idcs.slice(0,w.npoly).forEach(i => {
                     const c = aboveCopy[i];
                     c.poly.empty = false;
@@ -751,12 +1011,19 @@ class Grid {
     }
 
     tick() {
+        if (this.paused) 
+            return;
         this.shower();
         this.fall();
         this.clear();
-        this.effects = this.effects.filter(e => {
+        for (const name in this.timers) 
+            this.timers[name].tick();
+        /*this.effects = this.effects.filter(e => {
             return e.tick();
         });
+        if (this.rotation) {
+            this.rotate(this.rotation*Math.PI/180);
+        }*/
     }
 
     // Add center and flip y about center y

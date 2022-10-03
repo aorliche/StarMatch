@@ -7,13 +7,33 @@
 <script>
 var $ = e => document.querySelector(e);
 var grid;
+var images = ['/Images/Mini/blast.png', '/Images/Mini/rotate.png'];
+var assets = {};
+var nloaded = 0;
+
+function loadImageCb(dict, src, img) {
+   dict[basename(src)] = img;
+   if (++nloaded == images.length) {
+        startGame();
+   }
+}
+
+function loadImage(dict, src) {
+    const img = new Image();
+    img.src = src;
+    img.addEventListener('load', () => loadImageCb(dict, src, img));
+}
 
 window.addEventListener('load', e => {
+    images.forEach(src => loadImage(assets, src));
+});
+
+function startGame() {
     const canvas = $('canvas');
     const ctx = canvas.getContext('2d');
     for (let i=0; i<Math.PI/8; i+=Math.PI) {
         grid = new Grid({dim: {w: canvas.width, h: canvas.height}, type: 'hex', 
-            irange: [-9,9], jrange: [-9,9] ,size: 30, angle: i, ctx: ctx});
+            irange: [-9,9], jrange: [-9,9] ,size: 30, angle: i, ctx: ctx, assets: assets});
         //grid.draw(ctx, 'red');
     }
     const anim = new Animator(grid, ctx, {w: canvas.width, h: canvas.height});
@@ -30,12 +50,17 @@ window.addEventListener('load', e => {
         prev = null;
     });
     canvas.addEventListener('mouseout', e => {
-        dragging = false;
-        prev = null;
+        /*dragging = false;
+        prev = null;*/
+        e.preventDefault();
+        grid.mouseout();
     });
     // In screen coordinates
     canvas.addEventListener('mousemove', e => {
-        if (dragging) {
+        e.preventDefault();
+        const p = getCursorPosition(e);
+        grid.mousemove(p);
+        /*if (dragging) {
             const p = getCursorPosition(e);
             if (prev && !eq(p,prev)) {
                 const c = point(canvas.width/2, canvas.height/2);
@@ -49,13 +74,13 @@ window.addEventListener('load', e => {
                 const n2 = Math.pow(nn,2);
                 const theta = Math.acos((m2+n2-d2)/2/mm/nn);
                 if (ccw(p,c,prev) < 0) { // ccw
-                    //grid.rotate(theta);
+                    grid.rotate(theta);
                 } else { // cw
-                    //grid.rotate(-theta);
+                    grid.rotate(-theta);
                 }
            }
            prev = p;
-        }
+        }*/
     });
     // Click, in screen coordinates
     canvas.addEventListener('click', e => {
@@ -66,9 +91,9 @@ window.addEventListener('load', e => {
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
         const p = getCursorPosition(e);
-        grid.rightClick(p);
+        grid.contextmenu(p);
     });
-});
+}
 </script>
 </head>
 <body>
