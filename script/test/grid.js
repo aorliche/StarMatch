@@ -194,13 +194,14 @@ class Animator {
     }
 
     // Grid coordinates
-    message(text) {
+    message(text, time) {
         const start = this.messages.reduce((prev, cur) => prev + cur.dim.h + this.MSGSPACE, this.MSGSTART);
         const msg = new Message({
             text: text, 
             pos: {x: 0, y: start}, 
             fontSize: '24',
             fontWeight: 'Bold',
+            time: time ?? null,
             ctx: this.ctx, 
             xform: p => this.grid.xform(p)});
         this.messages.push(msg);
@@ -515,12 +516,58 @@ class Timer {
     tick() {
         if (this.paused) 
             return;
-        this.t += this.params.dt;
         if (this.params.tickcb) {
             this.params.tickcb(this.t);
         }
         if (this.t === this.params.tf)  {
             this.params.endcb(this.t);
+        }
+        this.t += this.params.dt;
+    }
+}
+
+class Background {
+    constructor(grid) {
+        this.grid = grid;
+        this.time = 0;
+        this.START = 0.5;
+        this.PERIOD = 80;
+        this.sav = 0;
+        this.cur = 0;
+        this.going = false;
+    }
+
+    draw(ctx) {
+        let col = '#fff';
+        if (this.going) {
+            const rat = 255/this.PERIOD*2*(this.sav-this.START)/(1-this.START);
+            const t = this.time % this.PERIOD;
+            const lvl = Math.floor((t < this.PERIOD/2) ? 255-rat*t : 255-rat*(this.PERIOD-t));
+            col = '#ff' + lvl.toString(16) + lvl.toString(16);
+        }
+        ctx.fillStyle = col;
+        ctx.fillRect(0, 0, this.grid.params.dim.w, this.grid.params.dim.h);
+    }
+
+    get level() {
+        const maxy = this.grid.centers
+            .filter(c => c.poly && !c.poly.empty && !c.poly.to)
+            .reduce((prev, cur) => cur.poly.params.center.y > prev ? cur.poly.params.center.y : prev, 
+                -this.grid.params.dim.h/2);
+        return (maxy + this.grid.params.dim.h/2) / this.grid.params.dim.h;
+    }
+
+    tick() {
+        this.time++;
+        if (this.time % this.PERIOD == 0) {
+            const lvl = this.level;
+            if (lvl >= this.START) {
+                this.going = true;
+                this.cur = 0;
+                this.sav = lvl;
+            } else {
+                this.going = false;
+            }
         }
     }
 }
@@ -552,9 +599,6 @@ class Grid {
             }
         )};
         this.effects = [new FadeInOut(this.messages.levelIntro, [0,100,0])];*/
-        /*this.tutorial = new TextControl({
-
-        });*/
         this.blasts = new ImageCounterControl({
             pos: {x: 20, y: 30},
             dim: {w: 30, h: 30},
@@ -611,12 +655,16 @@ class Grid {
             })
         ];
         this.iterations = new TextCounterControl({
-            pos: point(this.params.dim.w-105, 63),
-            text: 'Iteration',
+            pos: point(this.params.dim.w-90, 63),
+            text: 'Level',
             fontSize: 16,
             count: 1,
             ctx: this.params.ctx
         });
+        this.schedule(() => this.anim.message('Click neighboring polys to swap', 400), 0);
+        this.schedule(() => this.anim.message('Get 3 in a row to clear', 400), 420);
+        this.schedule(() => this.anim.message('Right click to blast!', 400), 840);
+        this.bg = new Background(this);
     }
 
     assignColors() {
@@ -762,6 +810,7 @@ class Grid {
     }
 
     draw(ctx, color) {
+        this.bg.draw(ctx);
         this.centers.forEach(c => {
             //fillCircle(ctx, this.xform(c), 2, color);
             if (c.poly && !c.poly.empty) 
@@ -982,6 +1031,7 @@ class Grid {
     }
 
     mouseout() {
+        this.pause.hover = false;
         this.hover = null;
     }
 
@@ -1010,6 +1060,27 @@ class Grid {
                 }
             }
         });
+    }
+
+    schedule(cb, time) {
+        let maxidx = 0;
+        for (const name in this.timers) {
+            if (name.substr(0,6) == 'sched-') {
+                const idx = parseInt(name.split('-')[1]);
+                if (idx > maxidx) 
+                    maxidx = idx;
+            }
+        }
+        const name = 'sched-' + (maxidx+1);
+        this.timers[name] = new Timer({
+            t0: time,
+            dt: -1,
+            tf: 0,
+            endcb: () => {
+                cb();
+                delete this.timers[name];
+            }
+        }); 
     }
 
     shower() {
@@ -1066,6 +1137,7 @@ class Grid {
         this.clear();
         for (const name in this.timers) 
             this.timers[name].tick();
+        this.bg.tick();
         /*this.effects = this.effects.filter(e => {
             return e.tick();
         });

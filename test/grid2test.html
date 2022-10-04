@@ -39,8 +39,6 @@ function startGame() {
     }
     const anim = new Animator(grid, ctx, {w: canvas.width, h: canvas.height});
     anim.start();
-    anim.message('hello');
-    anim.message('hi');
     let dragging = false;
     let prev = null;
     canvas.addEventListener('mousedown', e => {
