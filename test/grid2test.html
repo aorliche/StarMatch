@@ -8,7 +8,10 @@
 <script>
 var $ = e => document.querySelector(e);
 var grid;
-var images = ['/Images/Mini/blast.png', '/Images/Mini/rotate.png'];
+var audio = new Sounds();
+var images = ['/Images/Mini/blast.png', '/Images/Mini/rotate.png', '/Images/Mini/lost.png', '/Images/Mini/polymatch.png'];
+var sounds = ['/Sounds/Mini/clear.mp3', '/Sounds/Mini/swap.mp3', '/Sounds/Mini/plus.mp3', '/Sounds/Mini/blast2.mp3', '/Sounds/Mini/klaxon.wav', '/Sounds/Mini/lost.wav', '/Sounds/Mini/whoosh.flac'];
+var music = ['/Sounds/Mini/alien-dream.wav', '/Sounds/Mini/metal-solo.wav', '/Sounds/Mini/space-loop.wav'];
 var assets = {};
 var nloaded = 0;
 
@@ -27,6 +30,8 @@ function loadImage(dict, src) {
 
 window.addEventListener('load', e => {
     images.forEach(src => loadImage(assets, src));
+    sounds.forEach(src => audio.load(basename(src), src));
+    music.forEach(src => audio.loadMusic(basename(src), src));
 });
 
 function startGame() {
@@ -38,6 +43,7 @@ function startGame() {
         //grid.draw(ctx, 'red');
     }
     const anim = new Animator(grid, ctx, {w: canvas.width, h: canvas.height});
+    grid.audio = audio;
     anim.start();
     let dragging = false;
     let prev = null;

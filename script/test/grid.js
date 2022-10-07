@@ -18,14 +18,17 @@ class Poly {
 
     drawCoords(ctx, xform) {
         const center = xform(this.params.center);
+        ctx.font = '12px sans-serif';
         ctx.fillStyle = '#333';
         ctx.fillText(this.params.pairstr, center.x, center.y);
     }
 
     drawHard(ctx, xform) {
         const center = xform(this.params.center);
+        const tm = ctx.measureText(this.hard);
+        const ascent = tm.actualBoundingBoxAscent;
         ctx.fillStyle = '#333';
-        ctx.fillText(this.hard, center.x, center.y);
+        ctx.fillText(this.hard, center.x-tm.width/2, center.y+ascent/2);
     }
 
     drawSelected(ctx, xform) {
@@ -136,12 +139,14 @@ class Animator {
         this.messages = [];
         this.FALLSPEED = 5;
         this.CLEARSPEED = 8;
+        this.INTROCLEARSPEED = 2;
         this.CLEARREMOVE = 200;
         this.MSGSTART = dim.h/7;
         this.MSGSPACE = 15;
     }
 
     animate() {
+        const clearspeed = this.grid.state == 'intro' ? this.INTROCLEARSPEED : this.CLEARSPEED;
         this.polys = this.polys.filter(p => {
             // params.center can be set to .to and .to can be set to null in clear()
             if (!p.to) return false;
@@ -159,7 +164,7 @@ class Animator {
             }
         });
         this.clearing = this.clearing.filter(p => {
-            p.params.center.y -= this.CLEARSPEED;
+            p.params.center.y -= clearspeed;
             if (p.params.center.y < -this.grid.params.dim.h/2-this.CLEARREMOVE)
                 return false;
             else {
@@ -169,16 +174,20 @@ class Animator {
         });
         this.messages = this.messages.filter(msg => {
             msg.tick();
-            if (msg.time < 0) {
-                this.messages.forEach(m => m.pos.y -= msg.dim.h+this.MSGSPACE);
-                return false;
-            }
-            return true;
+            return msg.time >= 0;
         });
         this.grid.tick();
         this.repaint();
         if (this.running) 
             requestAnimationFrame(e => this.animate());
+    }
+
+    calcMessagePositions() {
+        let msgy = this.MSGSTART;
+        for (let i=0; i<this.messages.length; i++) {
+            this.messages[i].pos.y = msgy;
+            msgy += this.messages[i].dim.h + this.MSGSPACE;
+        }
     }
 
     clear(poly) {
@@ -194,17 +203,18 @@ class Animator {
     }
 
     // Grid coordinates
+    // Position is also calculated in animate
     message(text, time) {
-        const start = this.messages.reduce((prev, cur) => prev + cur.dim.h + this.MSGSPACE, this.MSGSTART);
         const msg = new Message({
             text: text, 
-            pos: {x: 0, y: start}, 
+            pos: {x: 0, y: 0}, 
             fontSize: '24',
-            fontWeight: 'Bold',
+            fontWeight: '',
             time: time ?? null,
             ctx: this.ctx, 
             xform: p => this.grid.xform(p)});
         this.messages.push(msg);
+        this.calcMessagePositions();
     }
 
     start() {
@@ -220,8 +230,14 @@ class Animator {
     repaint() {
         this.ctx.fillStyle = 'white';
         this.ctx.fillRect(0,0,this.dim.w,this.dim.h);
-        this.grid.draw(this.ctx, 'red');
-        this.messages.forEach(msg => msg.draw(this.ctx));
+        if (this.grid.state == 'intro') {
+            this.grid.drawClearing(this.ctx);
+            this.grid.boxes.intro.draw(this.ctx);
+        } else {
+            this.grid.draw(this.ctx, 'red');
+            this.messages.forEach(msg => msg.draw(this.ctx));
+            this.grid.drawOverlay(this.ctx);
+        }
     }
 }
 
@@ -488,8 +504,6 @@ class BoxControl extends Control {
     }
 
     draw(ctx) {
-        /*console.log(this);
-        throw 'bad';*/
         if (this.bgColor) {
             ctx.save();
             if (this.bgAlpha) {
@@ -526,50 +540,271 @@ class Timer {
     }
 }
 
-class Background {
+class Klaxon {
     constructor(grid) {
         this.grid = grid;
-        this.time = 0;
-        this.START = 0.5;
-        this.PERIOD = 80;
-        this.sav = 0;
-        this.cur = 0;
-        this.going = false;
+        this.active = false;
+        this.THRESHOLD = 0.6;
+        this.TRIGGER = 60;
+        this.RATE = 60;
+        // We can get away with double-counting triangles
+        this.occupied = {};
+        this.grid.centers.forEach(c => {
+            this.occupied[c.pairstr] = 0;
+        });
+        // Screen coords
+        this.text = new TextControl({
+            pos: point(0,120),
+            text: 'Warning!',
+            fontSize: 48,
+            fontWeight: 'Bold',
+            color: '#f00',
+            ctx: this.grid.params.ctx
+        });
+        this.text.pos.x = this.grid.params.dim.w/2-this.text.dim.w/2;
     }
 
     draw(ctx) {
-        let col = '#fff';
-        if (this.going) {
-            const rat = 255/this.PERIOD*2*(this.sav-this.START)/(1-this.START);
-            const t = this.time % this.PERIOD;
-            const lvl = Math.floor((t < this.PERIOD/2) ? 255-rat*t : 255-rat*(this.PERIOD-t));
-            col = '#ff' + lvl.toString(16) + lvl.toString(16);
+        if (this.active && this.time%this.RATE < this.RATE/2) {
+            this.text.draw(ctx);
         }
-        ctx.fillStyle = col;
-        ctx.fillRect(0, 0, this.grid.params.dim.w, this.grid.params.dim.h);
     }
 
-    get level() {
-        const maxy = this.grid.centers
-            .filter(c => c.poly && !c.poly.empty && !c.poly.to)
-            .reduce((prev, cur) => cur.poly.params.center.y > prev ? cur.poly.params.center.y : prev, 
-                -this.grid.params.dim.h/2);
-        return (maxy + this.grid.params.dim.h/2) / this.grid.params.dim.h;
+    reset() {
+        this.active = false;
+        this.time = 0;
     }
 
+    // Make sure the same poly is at a center for N ticks
+    // before triggering to prevent false klaxons
     tick() {
-        this.time++;
-        if (this.time % this.PERIOD == 0) {
-            const lvl = this.level;
-            if (lvl >= this.START) {
-                this.going = true;
-                this.cur = 0;
-                this.sav = lvl;
-            } else {
-                this.going = false;
-            }
+        // Don't update while paused but keep flashing the warning
+        if (!this.grid.paused) 
+            this.update();
+        if (this.active) {
+            this.time++;
+            if (this.time < this.RATE) 
+                return;
+        }
+        this.reset();
+        const thresh = (this.THRESHOLD-0.5)*this.grid.params.dim.h;
+        if (this.level > thresh) {
+            this.trigger();
         }
     }
+
+    trigger() {
+        this.active = true;
+        this.time = 0;
+        if (!this.grid.paused) 
+            this.grid.audio.play('klaxon');
+    }
+
+    update() {
+        // Set level for grid
+        this.level = -Infinity;
+        this.grid.centers.forEach(c => {
+            if (c.poly && !c.poly.empty && !c.poly.to) {
+                this.occupied[c.pairstr]++;
+                if (this.occupied[c.pairstr] > this.TRIGGER && c.y > this.level) 
+                    this.level = c.y;
+            } else {
+                this.occupied[c.pairstr] = 0;
+            }
+        });
+    }
+
+}
+
+class PauseOverlay extends BoxControl {
+    constructor(params) {
+        super(params);
+        this.text = new TextControl(params);
+        this.grid = params.grid;
+        this.text.pos = point(this.grid.params.dim.w/2-this.text.dim.w/2, this.pos.y+20);
+    }
+
+    draw(ctx) {
+        if (this.grid.paused) {
+            super.draw(ctx);
+            this.text.draw(ctx);
+        }
+    }
+}
+
+class LostOverlay extends BoxControl {
+    constructor(params) {
+        super(params);
+        this.grid = params.grid;
+        this.button = params.button;
+        this.text = new TextControl({...params});
+        params.bgColor = null;
+        params.bgAlpha = null;
+        this.img = new ImageControl(params);
+        this.img.dim = params.imgDim ?? null;
+        this.pack();
+    }
+
+    draw(ctx) {
+        if (this.grid.state == 'lost') {
+            super.draw(ctx);
+            this.img.draw(ctx);
+            this.text.draw(ctx);
+            this.button.draw(ctx);
+        }
+    }
+
+    pack() {
+        const imgDim = this.img.calcDim();
+        this.img.pos = point(this.pos.x+this.dim.w/2-imgDim.w/2, this.pos.y+20);
+        this.text.pos = point(this.pos.x+this.dim.w/2-this.text.dim.w/2, this.img.pos.y+this.img.dim.h+10);
+        this.button.pos = point(this.pos.x+this.dim.w/2-this.button.dim.w/2, this.text.pos.y+this.text.dim.h+20);
+        this.button.pack();
+    }
+}
+
+class IntroOverlay extends BoxControl {
+    constructor(params) {
+        super(params);
+        this.text = new TextControl({...params});
+        params.bgColor = null;
+        params.bgAlpha = null;
+        this.img = new ImageControl(params);
+        this.img.dim = params.imgDim ?? null;
+        this.grid = params.grid;
+        this.pack();
+    }
+
+    draw(ctx) {
+        if (this.grid.state == 'intro') {
+            super.draw(ctx);
+            this.img.draw(ctx);
+            this.text.draw(ctx);
+        }
+    }
+
+    pack() {
+        const imgDim = this.img.calcDim();
+        this.img.pos = point(this.dim.w/2-imgDim.w/2, this.pos.y+40);
+        this.text.pos = point(this.dim.w/2-this.text.dim.w/2, this.img.pos.y+this.img.dim.h+10);
+    }
+}
+
+// Cannot be called Audio because it interferes with the HTML Element Audio
+class Sounds {
+	constructor() {
+		this.ctx = new AudioContext();
+		this.sounds = {};
+		this.music = {};
+		this.soundGainNode = new GainNode(this.ctx);
+		this.soundGainNode.connect(this.ctx.destination);
+		this.updateGain();
+	}
+
+	load(name, url, play) {
+		fetch(url)
+			.then(resp => resp.arrayBuffer())
+			.then(buffer => {
+				console.log(buffer);
+				this.ctx.decodeAudioData(
+					buffer, 
+					buf => {
+						this.sounds[name] = {buf, sources: []};
+						if (play) this.play(name);
+					},
+					e => console.log(`Failed to decode ${name}: ${e.message}`));
+			});
+	}
+
+	loadMusic(name, url) {
+		if (this.music[name]) {
+			this.music[name].mediaElement.pause();
+			this.music[name].disconnect();
+		}
+		const audio = new Audio(url);
+		this.music[name] = this.ctx.createMediaElementSource(audio);
+        this.music[name].mediaElement.volume = 1;
+		//this.music[name].mediaElement.volume = this.game.menu.find('Music Volume').value;
+		this.music[name].connect(this.ctx.destination);
+	}
+
+	play(name, opts) {
+		const sound = this.sounds[name];
+		if (!sound) {
+			console.log(`Sound ${name} not loaded`);
+			return;
+		}
+		if (sound.sources.length > 0 && sound.sources[0].loop) return;
+		const src = this.ctx.createBufferSource();
+		sound.sources.push(src);
+		sound.keep = (opts && opts.keep) ?? false;
+		sound.loop = (opts && opts.loop) ?? false;
+		src.nostop = (opts && opts.nostop) ?? false; // meant to be src
+		src.buffer = sound.buf;
+		src.connect(this.soundGainNode);
+		src.addEventListener('ended', e => {
+			if (!sound.loop) {
+				sound.sources.splice(sound.sources.indexOf(src), 1);
+			}
+		});
+		src.start();
+	}
+
+	playing(name) {
+		const sound = this.sounds[name];
+		return sound && sound.sources.length > 0;
+	}
+
+	playMusic(name) {
+        this.ctx.resume();
+		if (!this.music[name]) return;
+		for (const n in this.music) {
+			if (n != name) {
+				this.music[n].mediaElement.pause();
+                this.music[n].mediaElement.currentTime = 0;
+			}
+		}
+		this.music[name].mediaElement.loop = true;
+		this.music[name].mediaElement.play();
+	}
+
+	stop(name) {
+		const sound = this.sounds[name];
+		if (!sound) return;
+		sound.loop = false;
+		sound.sources.forEach(src => {
+			if (!src.nostop) 
+				src.stop();
+		});
+	}
+
+	stopAll() {
+		for (const name in this.sounds) {
+			if (!this.sounds[name].keep)
+				this.stop(name);
+		}
+	}
+
+	stopLoop(name) {
+		const sound = this.sounds[name];
+		if (!sound) return;
+		sound.loop = false;
+	}
+
+	stopMusic(name) {
+		if (this.music[name]) {
+			this.music[name].mediaElement.pause();
+		}
+	}
+
+	updateGain() {
+		const sg = 1; //this.game.menu.find('Sound Effects Volume').value;
+		const mg = 1; //this.game.menu.find('Music Volume').value;
+		this.soundGainNode.gain.setValueAtTime(sg, this.ctx.currentTime);
+		for (const name in this.music) {
+			this.music[name].mediaElement.volume = mg;
+		}
+	}
 }
 
 class Grid {
@@ -579,26 +814,13 @@ class Grid {
         this.EMPTYTOP = -300;
         this.TOPPADDING = 200;
         this.MAXBLASTS = 8;
-        this.time = -10;
-        this.weather = new Weather(120, 1).add(600, 5, 'point').add(1500, 25);
+        this.weather = new Weather(120, 1).add(600, 5, 'point').add(1000, 25);
         switch (params.type) {
             case 'tri': this.initTri(); this.kls = Tri; break;
             case 'square': this.initSquare(); this.kls = Square; break;
             case 'hex': this.initHex(); this.kls = Hex; break;
         }
-        this.makePolys();
-        this.cacheNeighbors();
-        this.assignColors();
-        /*this.messages = {levelIntro: new Message({
-                text: 'Welcome to Poly Match',
-                pos: point(0, 150),
-                fontSize: '32',
-                fontWeight: 'Bold',
-                ctx: this.params.ctx, 
-                xform: p => this.xform(p)
-            }
-        )};
-        this.effects = [new FadeInOut(this.messages.levelIntro, [0,100,0])];*/
+        this.reset();
         this.blasts = new ImageCounterControl({
             pos: {x: 20, y: 30},
             dim: {w: 30, h: 30},
@@ -641,30 +863,81 @@ class Grid {
                 },
                 endcb: t => {
                     this.anim.message('You did it!');
-                    this.iterations.count++;
+                    this.level.count++;
                     this.timers.survive.reset();
                 }
             })
         };
-        this.boxes = [
-            new BoxControl({
+        this.boxes = {
+            blasts: new BoxControl({
                 pos: point(0,15), 
                 dim: dimension(this.params.dim.w, 40), 
                 bgColor: '#333', 
                 bgAlpha: 0.3
+            }),
+            pause: new PauseOverlay({
+                pos: point(0,58),
+                dim: dimension(this.params.dim.w, 65),
+                bgColor: '#77f',
+                bgAlpha: 0.3,
+                text: 'Paused',
+                fontSize: 28,
+                fontWeight: '',
+                ctx: this.params.ctx,
+                grid: this
+            }),
+            lost: new LostOverlay({
+                pos: point(0,150),
+                dim: dimension(this.params.dim.w, 175),
+                bgColor: '#f55',
+                bgAlpha: 0.7,
+                color: '#fff',
+                text: 'You lost!',
+                fontSize: 28,
+                fontWeight: '',
+                img: this.params.assets['lost'],
+                imgDim: dimension(50,50),
+                button: new ButtonControl({
+                    text: 'Play again',
+                    pos: point(0,0),
+                    dim: dimension(120,30),
+                    fontSize: 16,
+                    bgColor: '#77f',
+                    color: '#fff',
+                    ctx: this.params.ctx,
+                    cb: () => {
+                        this.state = 'intro';
+                        this.blasts.count = 1;
+                        this.klaxon.reset();
+                        this.reset();
+                    }
+                }),
+                ctx: this.params.ctx,
+                grid: this
+            }),
+            intro: new IntroOverlay({
+                pos: point(0,150),
+                dim: dimension(this.params.dim.w, 200),
+                img: this.params.assets['polymatch'],
+                imgDim: dimension(300, 80),
+                text: 'Click to start',
+                fontSize: 28,
+                color: '#000',
+                bgColor: '#f55',
+                bgAlpha: 0.5,
+                ctx: this.params.ctx,
+                grid: this
             })
-        ];
-        this.iterations = new TextCounterControl({
+        };
+        this.level = new TextCounterControl({
             pos: point(this.params.dim.w-90, 63),
             text: 'Level',
             fontSize: 16,
             count: 1,
             ctx: this.params.ctx
         });
-        this.schedule(() => this.anim.message('Click neighboring polys to swap', 400), 0);
-        this.schedule(() => this.anim.message('Get 3 in a row to clear', 400), 420);
-        this.schedule(() => this.anim.message('Right click to blast!', 400), 840);
-        this.bg = new Background(this);
+        this.klaxon = new Klaxon(this);
+        this.state = 'intro';
     }
 
     assignColors() {
@@ -710,17 +983,24 @@ class Grid {
     }
 
     clear() {
+        let found = false;
         this.matched.forEach(grp => {
             let bonus = grp.length-3;
             if (this.blasts.count+bonus > this.MAXBLASTS) 
                 bonus = this.MAXBLASTS-this.blasts.count;
-            if (bonus) 
+            if (bonus) {
+                this.audio.play('plus');
                 this.anim.message(`+${bonus} Blasts!`);
+            }
             this.blasts.count += bonus;
             grp.forEach(c => {
                 this.clearCenter(c);
             });
+            found = true;
         });
+        if (found) {
+            audio.play('clear');
+        }
     }
 
     clearCenter(c, blast) {
@@ -739,9 +1019,23 @@ class Grid {
     }
 
     click(p) {
+        // Start the game
+        if (this.state == 'intro') {
+            this.state = 'playing';
+            this.anim.clearing = [];
+            this.time = 0;
+            this.schedule(() => this.anim.message('Click neighboring polys to swap', 400), 0);
+            this.schedule(() => this.anim.message('Get 3 in a row to clear', 400), 420);
+            this.schedule(() => this.anim.message('Right click to blast!', 400), 840);
+            this.audio.playMusic('space-loop');
+        }
         // Buttons in screen coords
-        if (this.pause.contains(p)) {
+        if (this.state == 'playing' && this.pause.contains(p)) {
             this.pause.click();
+            return;
+        }
+        if (this.state == 'lost' && this.boxes.lost.button.contains(p)) {
+            this.boxes.lost.button.click();
             return;
         }
         if (this.paused)
@@ -755,6 +1049,7 @@ class Grid {
                     c.neighbors.forEach(n => {
                         if (!found && n.poly == this.selected) {
                             this.swapPolys(c, n);
+                            this.audio.play('swap');
                             this.selected = c.poly;
                             found = true;
                         }
@@ -801,6 +1096,8 @@ class Grid {
         let found = false;
         this.centers.forEach(c => {
             if (!found && c.poly && !c.poly.empty && c.poly.contains(p)) {
+                this.audio.play('blast2');
+                this.audio.play('clear');
                 c.neighbors.forEach(n => this.clearCenter(n));
                 this.clearCenter(c, true);
                 this.blasts.count--;
@@ -810,30 +1107,41 @@ class Grid {
     }
 
     draw(ctx, color) {
-        this.bg.draw(ctx);
         this.centers.forEach(c => {
             //fillCircle(ctx, this.xform(c), 2, color);
             if (c.poly && !c.poly.empty) 
                 c.poly.draw(ctx, p => this.xform(p));
         });
-        if (this.selected) 
-            this.selected.drawSelected(ctx, p => this.xform(p));
-        if (this.hover) {
-            if (this.hover.poly && !this.hover.poly.empty && !this.hover.poly.to) {
-                this.hover.poly.drawSelected(ctx, p => this.xform(p));
+        if (this.state == 'playing') {
+            if (this.selected) 
+                this.selected.drawSelected(ctx, p => this.xform(p));
+            if (this.hover) {
+                if (this.hover.poly && !this.hover.poly.empty && !this.hover.poly.to) {
+                    this.hover.poly.drawSelected(ctx, p => this.xform(p));
+                }
             }
         }
+        this.drawClearing(ctx);
+    }
+
+    drawClearing(ctx) {
         this.anim.clearing.forEach(p => {
             p.draw(ctx, p => this.xform(p));
         });
-        this.boxes.forEach(b => b.draw(ctx));
+    }
+
+    // Called from animator
+    drawOverlay(ctx) {
+        for (const name in this.boxes) {
+            this.boxes[name].draw(ctx);
+        }
         this.blasts.draw(ctx);
         this.survive.draw(ctx);
         this.pause.draw(ctx);
-        this.iterations.draw(ctx);
-        for (let msgname in this.messages) {
-            this.messages[msgname].draw(ctx);
-        };
+        this.level.draw(ctx);
+        if (this.state == 'playing') {
+            this.klaxon.draw(ctx);
+        }
     }
 
     fall() {
@@ -1015,7 +1323,8 @@ class Grid {
 
     mousemove(p) {
         // Buttons in screen coords
-        this.pause.hover = this.pause.contains(p);
+        this.pause.hover = this.state == 'playing' && this.pause.contains(p);
+        this.boxes.lost.button.hover = this.boxes.lost.button.contains(p);
         if (this.paused) {
             this.hover = null;
             return;
@@ -1032,6 +1341,7 @@ class Grid {
 
     mouseout() {
         this.pause.hover = false;
+        this.boxes.lost.button.hover = false;
         this.hover = null;
     }
 
@@ -1042,6 +1352,13 @@ class Grid {
             case 'square': return this.params.size+tol;
             case 'hex': return this.params.size*Math.sqrt(3)+tol;
         }
+    }
+
+    reset() {
+        this.makePolys();
+        this.cacheNeighbors();
+        this.assignColors();
+        this.time = 0;
     }
 
     rotate(theta) {
@@ -1084,7 +1401,7 @@ class Grid {
     }
 
     shower() {
-        this.time++;
+        //let added = false;
         if (this.time <= 0) 
             return;
         const above = this.centers
@@ -1092,6 +1409,7 @@ class Grid {
             .filter(c => !this.contains(c));
         this.weather.systems
             .filter(w => this.time % w.time == 0).forEach(w => {
+                //added = true;
                 let aboveCopy = [...above];
                 let idcs;
                 if (w.type == 'point') {
@@ -1110,7 +1428,34 @@ class Grid {
                     c.poly.hard = Math.random() > (1-w.hardratio) ? w.hardlevel : 0;
                     c.poly.color = randomChoice(colors);
                 });
+                this.audio.play('whoosh');
             });
+        //if (added) this.audio.play('whoosh');
+    }
+
+    // Randomly spawn several polys to fall from the sky
+    showerIntro() {
+        if (this.time <= 0) 
+            return;
+        if (!this.nextIntro) 
+            this.nextIntro = randint(40,60);
+        if (this.time % this.nextIntro != 0) 
+            return;
+        const topy = this.params.dim.h/2 + 2*this.params.size;
+        const above = this.centers
+            .filter(c => this.containsBucket(c, this.TOPPADDING))
+            .filter(c => c.y > topy);
+        const chosen = new Set();
+        do {
+            chosen.add(above[randint(0,above.length)]);
+        } while (Math.random() < 0.3);
+        [...chosen].forEach(c => {
+            c.poly.empty = false;
+            c.poly.color = randomChoice(colors);
+            this.clearCenter(c);
+        });
+        this.nextIntro = 0;
+        this.time = 0;
     }
 
     swapPolys(c1, c2, fall) {
@@ -1130,20 +1475,29 @@ class Grid {
     }
 
     tick() {
-        if (this.paused) 
+        if (this.paused) {
+            this.klaxon.tick();
             return;
+        }
+        this.time++;
+        if (this.state == 'intro') {
+            this.showerIntro();
+            return;
+        }
+        if (this.state == 'lost') {
+            return;
+        }
         this.shower();
         this.fall();
         this.clear();
         for (const name in this.timers) 
             this.timers[name].tick();
-        this.bg.tick();
-        /*this.effects = this.effects.filter(e => {
-            return e.tick();
-        });
-        if (this.rotation) {
-            this.rotate(this.rotation*Math.PI/180);
-        }*/
+        this.klaxon.tick();
+        if (this.klaxon.level > this.params.dim.h/2) {
+            this.state = 'lost';
+            this.audio.stopMusic('space-loop');
+            this.audio.play('lost');
+        }
     }
 
     // Add center and flip y about center y
